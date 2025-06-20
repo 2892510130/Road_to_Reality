@@ -40,6 +40,7 @@
     \item Value Function
     \item Solving Value Function
     \item Action Value Function
+    \item Bellman Optimality Equation
 \end{introduction}
     
 \section{Markov Decision Process}
@@ -47,7 +48,7 @@
 $\mathcal S, \mathcal A$ are states and actions a robot can take, when taking an action, state after may not
 be deterministic, it has a probability. We use a transition function $T: \mathcal S \times \mathcal A \times 
 \mathcal S \rightarrow [0, 1]$ to denote this, $T(s, a, s') = P(s' \mid s,a)$ is the probability of reaching $s'$
-given $s$ and $a$. For $\forall s \in \mathcal S$ and $\forall a \in \mathcal A$, $\sum_{s^{'}\in S}T(s, a, s^{'}) = 1$. 
+given $s$ and $a$. For $\forall s \in \mathcal S$ and $\forall a \in \mathcal A$, $\sum_{s'\in S}T(s, a, s') = 1$. 
 
 \mydefination{Reward} $r:\mathcal S \times \mathcal A \rightarrow \mathbb R$, $r(s,a)$ depends on current state and action. And the reward
 may also be stochastic, given state and action, the reward has probability $p(r \mid s, a)$.
@@ -70,26 +71,30 @@ Markov system only depend on current state and action, not the history one (but 
 
 The formular of value function is:
 \begin{equation}
-    V^{\pi}(s_0) = E_{a_t \sim \pi(s_t)}[R(\tau)] = E_{a_t \sim \pi(s_t)}\left[ \sum_{t=0}^{\infty}\gamma^tr(s_t, a_t) \right]
+    V^{\pi}(s_0) = \mathbb E_{a_t \sim \pi(s_t)}[R(\tau)] = \mathbb E_{a_t \sim \pi(s_t)}\left[ \sum_{t=0}^{\infty}\gamma^tr(s_t, a_t) \right]
 \end{equation} 
 
-If we divede the trajectory into two parts, $s_0$ and $\tau^{'}$, we get the return:
-\[ R(\tau) = r(s_0, a_0) + \gamma \sum_{t=1}^{\infty}\gamma^{t-1}r(s_t, a_t) = r(s_0, a_0) + \gamma R(\tau^{'}) \]
+If we divede the trajectory into two parts, $s_0$ and $\tau'$, we get the return:
+\[ R(\tau) = r(s_0, a_0) + \gamma \sum_{t=1}^{\infty}\gamma^{t-1}r(s_t, a_t) = r(s_0, a_0) + \gamma R(\tau') \]
 
-Put it back into the value function, we get:
+Put it back into the value function, using law of total expectation:
+\[ \mathbb E[X] = \sum_a \mathbb E[X \mid A=a]p(a) = \mathbb E_a \left [\mathbb E[X \mid A=a] \right ] \]
+we get:
 \begin{equation}
     \begin{array}{lll}
-    V^{\pi}(s_0) &=& E_{a_t \sim \pi(s_t)}[r(s_0, a_0) + \gamma R(\tau^{'})] \\
-                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_t \sim \pi(s_t)}[R(\tau^{'}) \mid s_0, a_0] \\
-                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_0 \sim \pi(s_0)}\left[E_{s_1 \sim P(s_1 \mid a_0, s_0)}[E_{a_t \sim \pi(s_t)}[R(\tau^{'})]]\right] \\ 
-                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_0 \sim \pi(s_0)}\left[E_{s_1 \sim P(s_1 \mid a_0, s_0)}[V^{\pi}(s_1)]\right] \\
-                 &=& E_{a \sim \pi(s)}\left[ r(s_0, a_0) + \gamma E_{s_1 \sim P(s_1 \mid a_0, s_0)} [V^{\pi}(s_1)] \right]
+    V^{\pi}(s_0) &=& \mathbb E_{a_t \sim \pi(s_t)}[r(s_0, a_0) + \gamma R(\tau')] \\
+                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_t \sim \pi(s_t)}[R(\tau')] \\
+                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)}[\mathbb E_{a_t \sim \pi(s_t)}[R(\tau') \mid s_1, a_0]]\right] \\ 
+                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)}[V^{\pi}(s_1)]\right] \\
+                 &=& \mathbb E_{a \sim \pi(s)}\left[ r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)} [V^{\pi}(s_1)] \right]
     \end{array}
 \end{equation}
+before we put $s_1$ to the right as the condition, it is stochastic, inside the $E_{s_1 \sim p(s_1 \mid s_0, a_0)}$ scope it is deterministic, 
+then we can get $V^{\pi}(s_1)$, as it needs the state to be deterministic.
 
 The discrete formular is (get rid of the notation of time) so called \mydefination{Bellman Equation}:
-\begin{equation} \label{eq:1}
-    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\left[r(s,a) + \gamma \sum_{s^{'}}P(s^{'} \mid s, a)V^{\pi}(s^{'})\right], \forall s \in S
+\begin{equation} \label{eq:bellman_equation}
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\left[r(s,a) + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s')\right], \forall s \in S
 \end{equation}
 
 And if we write $r(s, a)$ as $\sum_r p(r \mid s, a) r$, then 
@@ -98,18 +103,18 @@ We can also get
 \[ p(s' \mid s, a) = \sum_{r \in \mathcal R} p(s', r \mid s, a) \]
 combined we get
 \begin{equation}
-    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s^{'} \in \mathcal S}\sum_{r \in \mathcal R}p(s', r \mid s, a)\left[r + \gamma V^{\pi}(s^{'})\right]
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s' \in \mathcal S}\sum_{r \in \mathcal R}p(s', r \mid s, a)\left[r + \gamma V^{\pi}(s')\right]
 \end{equation}
 
 If the reward depend solely on the next state $s'$, then
 \begin{equation}
-    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s^{'} \in \mathcal S}P(s^{'} \mid s, a)\left[r(s^{'}) + \gamma V^{\pi}(s^{'})\right]
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s' \in \mathcal S}P(s' \mid s, a)\left[r(s') + \gamma V^{\pi}(s')\right]
 \end{equation}
 
 Let 
 \[ r^{\pi}(s) = \sum_{a \in \mathcal A} \sum_r p(r \mid s, a) r \] 
 \[ p^{\pi}(s' \mid s) = \sum_{a \in \mathcal A} p(s' \mid s, a) \] 
-rewirte \ref{eq:1} into the vector form:
+rewirte \ref{eq:bellman_equation} into the vector form:
 \begin{equation}
     V^{\pi} = r^{\pi} + \gamma P^{\pi} V^{\pi}
 \end{equation}
@@ -124,14 +129,56 @@ Some properties: $I - \gamma P^{\pi}$ is invertible, $\left ( I - \gamma P^{\pi}
 For every vector $r \geq 0$, it holds that $\left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma P^{\pi} \right )^{-1} r_1^{\pi} \geq
 \left ( I - \gamma P^{\pi} \right )^{-1} r_2^{\pi}$
 
-However, this method need to calculate the inverse of the matrix, that need
+However, this method need to calculate the inverse of the matrix, that need some numerical algorithms. We can 
+use a iterative solution:
+\[ V_{k+1} = r^{\pi} + \gamma P^{\pi}V_k \]
+as $k \rightarrow \infty$, $V_k \rightarrow V^{\pi} = \left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi}$.
 
 \section{Action Value Function}
-Similarly to value funtion, \mydefination{Action Value Function} is the value of an action at state s, from that state, take that action, the expected sum reward (return). We use $V^{\pi}(s)$ to denote value function, 
+Similarly to value funtion, \mydefination{Action Value Function} is the value of an action at state s, 
+from that state, take that action, the expected sum reward (return). We use $V^{\pi}(s)$ to denote value function, 
 and $Q^{\pi}(s,a)$ to denote action value, their connection is:
 \begin{equation}
     V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s) Q^{\pi}(s,a)
 \end{equation} 
+
+The action value function is given as:
+\begin{equation}
+    \begin{array}{lll}
+    Q^{\pi}(s_0, a_0) &=& r(s_0, a_0) + \mathbb E_{a_t \sim \pi(s_t)}\left[ \sum_{t=1}^{\infty}\gamma^tr(s_t, a_t) \right] \\
+                      &=& r(s_0, a_0) + \gamma \mathbb E_{a_t \sim \pi(s_t)}\left[ \sum_{t=1}^{\infty}\gamma^{t-1} r(s_t, a_t) \right] \\
+                      &=& r(s_0, a_0) + \gamma \mathbb E_{a_t \sim \pi(s_t)}[R(\tau ')] \\
+                      &=& r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim p(s_1 \mid s_0, a_0)} \left [ \mathbb E_{a_t \sim \pi(s_t)}[R(\tau ') \mid s_1] \right ] \\
+                      &=& r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim p(s_1 \mid s_0, a_0)} [V^{\pi}(s_1)] \\
+                      &=& r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim p(s_1 \mid s_0, a_0)} \left [\sum_{a_1 \in \mathcal A}\pi(a_1 \mid s_1) Q^{\pi}(s_1, a_1) \right ]
+    \end{array}
+\end{equation} 
+
+Then the bellman equation of action value is:
+\begin{equation} \label{eq:bellman_equation_action}
+    \begin{array}{lll}
+    Q^{\pi}(s, a) &=& r(s, a) + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s') \\
+                  &=& r(s, a) + \gamma \sum_{s'}P(s' \mid s, a)\sum_{a' \in \mathcal A}\pi(a' \mid s')Q^{\pi}(s', a')
+    \end{array}
+\end{equation} 
+Note that we can always write $r(s, a)$ as $\sum_r p(r \mid s, a) r$ if it is stochastic, and it follows the same notation
+in the book \textit{Math of Reinforcement Learning}.
+
+Rewrite \ref{eq:bellman_equation_action} into vector form:
+\begin{equation}
+    Q^{\pi} = \tilde r^{\pi} + \gamma P^{\pi} \Pi^{\pi} Q^{\pi}
+\end{equation}
+where $\tilde r^{\pi}_{(s,a)} = \sum_r p(r \mid s, a)r$, 
+$P^{\pi}_{(s, a), s'} = p(s' \mid s, a)$, $\Pi_{s', (s', a')} = \pi(a' \mid s')$.
+
+\section{Bellman Optimality Equation}
+\mydefination{Bellman Optimality Equation} is given by:
+\begin{equation}
+    \begin{array}{lll}
+    V(s) &=& \max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) \left [ \sum_r p(r \mid s, a) r + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s') \right ] \\
+         &=& \max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) Q(s, a)
+    \end{array}
+\end{equation}
 
 \chapter{From LQR to RL}
 
