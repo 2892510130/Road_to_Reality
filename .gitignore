@@ -1,3 +1,7 @@
-temp/*
+# ignore all the temp files, but leave out the pdf file
+temp/**
+!temp/
+!temp/**/
 !temp/**/*.pdf
+
 _minted-Graduation
