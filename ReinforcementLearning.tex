@@ -1,0 +1,148 @@
+\documentclass[10pt]{elegantbook}
+
+\title{Reinforcement Learning Notes}
+\subtitle{Learn from trying!}
+
+\author{occupymars}
+\date{June. 20, 2025}
+\version{0.1}
+
+\cover{iron_man.jpg}
+
+% The color of the main page coverline
+\definecolor{customcolor}{RGB}{0,0,0}
+\colorlet{coverlinecolor}{customcolor}
+
+% all the packages included
+\usepackage{cprotect}
+\usepackage{fontawesome}
+
+% set some fonts
+\setmonofont{Ubuntu Mono}
+
+% my own commands
+% \newcommand{\mydefination}[1]{\textit{\textcolor[RGB]{0,174,247}{#1}}}
+\newcommand{\mydefination}[1]{\textbf{\textit{\textcolor{structurecolor}{#1}}}}
+
+\begin{document}
+
+\maketitle
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+
+\chapter{Reinforcement Learning Basics}
+
+\begin{introduction}
+    \item Markov Decision Process
+    \item Value Function
+    \item Solving Value Function
+    \item Action Value Function
+\end{introduction}
+    
+\section{Markov Decision Process}
+\mydefination{State} and \mydefination{Action} can describe a robot state respect to the enviroment and actions to move around, 
+$\mathcal S, \mathcal A$ are states and actions a robot can take, when taking an action, state after may not
+be deterministic, it has a probability. We use a transition function $T: \mathcal S \times \mathcal A \times 
+\mathcal S \rightarrow [0, 1]$ to denote this, $T(s, a, s') = P(s' \mid s,a)$ is the probability of reaching $s'$
+given $s$ and $a$. For $\forall s \in \mathcal S$ and $\forall a \in \mathcal A$, $\sum_{s^{'}\in S}T(s, a, s^{'}) = 1$. 
+
+\mydefination{Reward} $r:\mathcal S \times \mathcal A \rightarrow \mathbb R$, $r(s,a)$ depends on current state and action. And the reward
+may also be stochastic, given state and action, the reward has probability $p(r \mid s, a)$.
+
+\mydefination{Policy} $\pi(a \mid s)$ tells agent which actions to take at every state, $\sum_a \pi(a \mid s) = 1$.
+
+This can build a Markov Decision Process, $(\mathcal S, \mathcal A, \mathcal T, r)$ from the \mydefination{Trajectory} 
+$\tau = (s_0, a_0, r_0, s_1, a_1, r_1, s_2, a_2, r_2, \ldots)$, which has probability of:
+\[ P(\tau) = \pi(a_0\mid s_0) \cdot P(s_1 \mid s_0, a_0) \cdot \pi(a_1\mid s_1) \cdot P(s_2 \mid s_1, a_1) \cdots \] 
+
+We then define \mydefination{Return} as the total reward $R(\tau) = \sum_t r_t$, 
+the goal of reinforcement learning is to find a trajectory that has the largest return. The trajectory might be infinite, so in order for a 
+meaningful formular of its return, we introduce a discount factor $\gamma < 1$, $R(\tau) = \sum_{t=0}^{\infty}\gamma^tr_t$. For large $\gamma$, 
+the robot is encouraged to explore, for small one to take a short trajetory to goal.
+
+Markov system only depend on current state and action, not the history one (but we can always augment the system).
+
+\section{Value Function}
+\mydefination{Value Function} is the value of a state, from that state, the expected sum reward (return). 
+
+The formular of value function is:
+\begin{equation}
+    V^{\pi}(s_0) = E_{a_t \sim \pi(s_t)}[R(\tau)] = E_{a_t \sim \pi(s_t)}\left[ \sum_{t=0}^{\infty}\gamma^tr(s_t, a_t) \right]
+\end{equation} 
+
+If we divede the trajectory into two parts, $s_0$ and $\tau^{'}$, we get the return:
+\[ R(\tau) = r(s_0, a_0) + \gamma \sum_{t=1}^{\infty}\gamma^{t-1}r(s_t, a_t) = r(s_0, a_0) + \gamma R(\tau^{'}) \]
+
+Put it back into the value function, we get:
+\begin{equation}
+    \begin{array}{lll}
+    V^{\pi}(s_0) &=& E_{a_t \sim \pi(s_t)}[r(s_0, a_0) + \gamma R(\tau^{'})] \\
+                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_t \sim \pi(s_t)}[R(\tau^{'}) \mid s_0, a_0] \\
+                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_0 \sim \pi(s_0)}\left[E_{s_1 \sim P(s_1 \mid a_0, s_0)}[E_{a_t \sim \pi(s_t)}[R(\tau^{'})]]\right] \\ 
+                 &=& E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma E_{a_0 \sim \pi(s_0)}\left[E_{s_1 \sim P(s_1 \mid a_0, s_0)}[V^{\pi}(s_1)]\right] \\
+                 &=& E_{a \sim \pi(s)}\left[ r(s_0, a_0) + \gamma E_{s_1 \sim P(s_1 \mid a_0, s_0)} [V^{\pi}(s_1)] \right]
+    \end{array}
+\end{equation}
+
+The discrete formular is (get rid of the notation of time) so called \mydefination{Bellman Equation}:
+\begin{equation} \label{eq:1}
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\left[r(s,a) + \gamma \sum_{s^{'}}P(s^{'} \mid s, a)V^{\pi}(s^{'})\right], \forall s \in S
+\end{equation}
+
+And if we write $r(s, a)$ as $\sum_r p(r \mid s, a) r$, then 
+\[ p(r \mid s, a) = \sum_{s' \in \mathcal S}p(s', r \mid s, a) \]
+We can also get
+\[ p(s' \mid s, a) = \sum_{r \in \mathcal R} p(s', r \mid s, a) \]
+combined we get
+\begin{equation}
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s^{'} \in \mathcal S}\sum_{r \in \mathcal R}p(s', r \mid s, a)\left[r + \gamma V^{\pi}(s^{'})\right]
+\end{equation}
+
+If the reward depend solely on the next state $s'$, then
+\begin{equation}
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s^{'} \in \mathcal S}P(s^{'} \mid s, a)\left[r(s^{'}) + \gamma V^{\pi}(s^{'})\right]
+\end{equation}
+
+Let 
+\[ r^{\pi}(s) = \sum_{a \in \mathcal A} \sum_r p(r \mid s, a) r \] 
+\[ p^{\pi}(s' \mid s) = \sum_{a \in \mathcal A} p(s' \mid s, a) \] 
+rewirte \ref{eq:1} into the vector form:
+\begin{equation}
+    V^{\pi} = r^{\pi} + \gamma P^{\pi} V^{\pi}
+\end{equation}
+where $V^{\pi} = [V^{\pi}(s_1), \ldots, V^{\pi}(s_n)]^{\top} \in \mathbb R^n$, $r^{\pi} = [r^{\pi}(s_1), \ldots, r^{\pi}(s_n)]^{\top} \in \mathbb R^n$, and 
+$P^{\pi} \in \mathbb R^{n \times n}$ with $P^{\pi}_{ij} = p^{\pi}(s_j \mid s_i)$.
+
+\section{Solving Value Function}
+Next, we need to solve the value function, first way is closed-form solution:
+\[ V^{\pi} = \left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \]
+
+Some properties: $I - \gamma P^{\pi}$ is invertible, $\left ( I - \gamma P^{\pi} \right )^{-1} \geq I$ which means every element of this inverse is nonnegative.
+For every vector $r \geq 0$, it holds that $\left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma P^{\pi} \right )^{-1} r_1^{\pi} \geq
+\left ( I - \gamma P^{\pi} \right )^{-1} r_2^{\pi}$
+
+However, this method need to calculate the inverse of the matrix, that need
+
+\section{Action Value Function}
+Similarly to value funtion, \mydefination{Action Value Function} is the value of an action at state s, from that state, take that action, the expected sum reward (return). We use $V^{\pi}(s)$ to denote value function, 
+and $Q^{\pi}(s,a)$ to denote action value, their connection is:
+\begin{equation}
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s) Q^{\pi}(s,a)
+\end{equation} 
+
+\chapter{From LQR to RL}
+
+\begin{introduction}
+    \item LQR Problem
+    \item iLQR and DDP
+    \item Reinforcement Learning
+\end{introduction}
+
+\section{LQR and Value function}
+
+Given a linear model $x_{k+1} = A_k x_k + B_k u_k + C_k$.
+
+\end{document}
