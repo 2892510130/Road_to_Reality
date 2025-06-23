@@ -9,13 +9,11 @@
 
 \cover{iron_man.jpg}
 
-% The color of the main page coverline
-\definecolor{customcolor}{RGB}{0,0,0}
-\colorlet{coverlinecolor}{customcolor}
-
 % all the packages included
 \usepackage{cprotect}
 \usepackage{fontawesome}
+\usepackage[linesnumbered, ruled]{algorithm2e}
+\RestyleAlgo{algoruled}
 
 % set some fonts
 \setmonofont{Ubuntu Mono}
@@ -190,6 +188,263 @@ $P^{\pi}_{(s, a), s'} = p(s' \mid s, a)$, $\Pi_{s', (s', a')} = \pi(a' \mid s')$
 
 \section{LQR and Value function}
 
-Given a linear model $x_{k+1} = A_k x_k + B_k u_k + C_k$.
+Given a linear model $x_{t+1} = f(x_t, u_k) = A_t x_t + B_t u_t + C_t$. We want to optimize:
+\[ \min_{u_1, \ldots, u_T} c(x_1, u_1) + c(f(x_1, u_1), u_2) + \cdots + c(f(f(\ldots)), u_T) \]
+where we denotes 
+\[ c(x_t, u_t) = \frac{1}{2} 
+\begin{bmatrix}
+    x_t \\ 
+    u_t
+\end{bmatrix}^T C_t 
+\begin{bmatrix}
+    x_t \\ 
+    u_t
+\end{bmatrix}
++
+\begin{bmatrix}
+    x_t \\ 
+    u_t
+\end{bmatrix}^T c_t
+\]
+and 
+\[ f(x_t, u_t) 
+= F_t
+\begin{bmatrix}
+    x_t \\ 
+    u_t
+\end{bmatrix}
++ f_t
+\]
+
+We first do the \textbf{Backward Recursion}, solve for $u_T$ only, then the action value function (or the negitive cost function, here
+we take them with same sign) is:
+\[ Q(x_T, u_T) = \text{const} +
+\frac{1}{2} 
+\begin{bmatrix}
+    x_T \\ 
+    u_T
+\end{bmatrix}^T C_T
+\begin{bmatrix}
+    x_T \\ 
+    u_T
+\end{bmatrix} + 
+\begin{bmatrix}
+    x_T \\ 
+    u_T
+\end{bmatrix}^T c_T
+\]
+Get the derivative respect to $u_T$, which is:
+\[ \nabla_{u_T} Q(x_T, u_T) = C_{u_T, x_T}x_T + C_{u_T,u_T}u_T + c_{u_T}^T = 0 \]
+so we can get $K_T = -C_{u_T,u_T}^{-1}C_{u_T, x_T}, k_T = -C_{u_T,u_T}^{-1}c_{u_T}$.
+
+And we get the policy (which is a linear policy): $u_T = K_Tx_T + k_T$. Because $u_T$ is fully
+determined by $x_T$, we can eliminate it via substitution:
+\[ V(x_T) = \text{const} + \frac{1}{2} 
+\begin{bmatrix}
+    x_T \\ 
+    K_Tx_T + k_T
+\end{bmatrix}^T C_T
+\begin{bmatrix}
+    x_T \\ 
+    K_Tx_T + k_T
+\end{bmatrix}
++
+\begin{bmatrix}
+    x_T \\ 
+    K_Tx_T + k_T
+\end{bmatrix}^T
+c_T
+\]
+
+Open the equation:
+\begin{align*}
+V(\bm{x}_T) &= \text{const} + \frac{1}{2} \bm{x}_T^T \bm{V}_T \bm{x}_T + \bm{x}_T^T \bm{v}_T \\
+\bm{V}_T &= \bm{C}_{\bm{x}_T,\bm{x}_T} + \bm{C}_{\bm{x}_T,\bm{u}_T} \bm{K}_T + \bm{K}_T^T \bm{C}_{\bm{u}_T,\bm{x}_T} + \bm{K}_T^T \bm{C}_{\bm{u}_T,\bm{u}_T} \bm{K}_T \\
+\bm{v}_T &= \bm{c}_{\bm{x}_T} + \bm{C}_{\bm{x}_T,\bm{u}_T} \bm{k}_T + \bm{K}_T^T \bm{C}_{\bm{u}_T} + \bm{K}_T^T \bm{C}_{\bm{u}_T,\bm{u}_T} \bm{k}_T
+\end{align*}
+
+Use $x_{T-1}$ and $u_{T-1}$ to substitute the action value equation:
+\[ Q(x_{T-1}, u_{T-1}) = \text{const} +
+\frac{1}{2} 
+\begin{bmatrix}
+    x_{T-1} \\ 
+    u_{T-1}
+\end{bmatrix}^T C_{T-1}
+\begin{bmatrix}
+    x_{T-1} \\ 
+    u_{T-1}
+\end{bmatrix} + 
+\begin{bmatrix}
+    x_{T-1} \\ 
+    u_{T-1}
+\end{bmatrix}^T c_{T-1}
++
+V(f(x_{T-1}, u_{T-1}))
+\]
+
+And the value function of $x_T$ can be written as:
+\[ 
+V(x_T) = \text{const} + \frac{1}{2}
+\begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}^T
+F_{T-1}^T V_T F_{T-1}
+\begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}
++ \begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}^T F_{T-1}^T V_T f_{T-1}
++ \begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}^T F_{T-1}^T v_T
+\]
+
+So the action value function is:
+\[
+Q(x_{T-1}, u_{T-1}) = \text{const} + \frac{1}{2}
+\begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}^T
+Q_{T-1}
+\begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}
++ \begin{bmatrix}
+x_{T-1} \\
+u_{T-1}
+\end{bmatrix}^T q_{T-1}
+\]
+where
+\begin{align*}
+Q_{T-1} &= C_{T-1} + F_{T-1}^T V_T F_{T-1} \\
+q_{T-1} &= c_{T-1} + F_{T-1}^T V_T f_{T-1} + F_{T-1}^T v_T
+\end{align*}
+get the derivative:
+\[
+\nabla_{u_{T-1}} Q(x_{T-1}, u_{T-1}) =
+Q_{u_{T-1}, x_{T-1}} x_{T-1} + Q_{u_{T-1}, u_{T-1}} u_{T-1} + q_{u_{T-1}}^T = 0
+\]
+where
+\begin{align*}
+u_{T-1} &= K_{T-1} x_{T-1} + k_{T-1} \\
+K_{T-1} &= -Q_{u_{T-1}, u_{T-1}}^{-1} Q_{u_{T-1}, x_{T-1}} \\
+k_{T-1} &= -Q_{u_{T-1}, u_{T-1}}^{-1} q_{u_{T-1}}
+\end{align*}
+
+So we can continue the substitution process to the first control $u_0$, with the information of $x_0$,
+we start a \textbf{Forward Recursion}, $u_t = K_tx_t + k_t, x_{t+1} = f(x_t, u_t)$ to get the future states.
+
+We can wirte the Backward Recursion as algorithm:
+
+\begin{algorithm}[H] \label{alg:backward_recrusion}
+\For{$t = T$ to $1$}{
+    $\mathbf{Q}_t = \mathbf{C}_t + \mathbf{F}_t^T \mathbf{V}_{t+1} \mathbf{F}_t$\;
+    $\mathbf{q}_t = \mathbf{c}_t + \mathbf{F}_t^T \mathbf{V}_{t+1} \mathbf{f}_t + \mathbf{F}_t^T \mathbf{v}_{t+1}$\;
+
+    $Q(x_t, u_t) = \text{const} + \frac{1}{2}
+    \begin{bmatrix}
+    x_t \\
+    u_t
+    \end{bmatrix}^T
+    \mathbf{Q}_t
+    \begin{bmatrix}
+    x_t \\
+    u_t
+    \end{bmatrix}
+    + 
+    \begin{bmatrix}
+    x_t \\
+    u_t
+    \end{bmatrix}^T
+    \mathbf{q}_t$\;
+
+    $u_t \leftarrow \arg\min_{u_t} Q(x_t, u_t) = \mathbf{K}_t x_t + \mathbf{k}_t$\;
+
+    $\mathbf{K}_t = -\mathbf{Q}_{u_t, u_t}^{-1} \mathbf{Q}_{u_t, x_t}$\;
+    $\mathbf{k}_t = -\mathbf{Q}_{u_t, u_t}^{-1} \mathbf{q}_{u_t}$\;
+
+    $\mathbf{V}_t = \mathbf{Q}_{x_t, x_t} + \mathbf{Q}_{x_t, u_t} \mathbf{K}_t + \mathbf{K}_t^T \mathbf{Q}_{u_t, x_t} + \mathbf{K}_t^T \mathbf{Q}_{u_t, u_t} \mathbf{K}_t$\;
+    $\mathbf{v}_t = \mathbf{q}_{x_t} + \mathbf{Q}_{x_t, u_t} \mathbf{k}_t + \mathbf{K}_t^T \mathbf{q}_{u_t} + \mathbf{K}_t^T \mathbf{Q}_{u_t, u_t} \mathbf{k}_t$\;
+
+    $V(x_t) = \text{const} + \frac{1}{2} x_t^T \mathbf{V}_t x_t + x_t^T \mathbf{v}_t$\;
+}
+\caption{Backward Pass for Value Function Computation}
+\end{algorithm}
+
+We can generalize it to stochastic case, where system dynamic with a gaussian noise (control is still deterministic), beacuse the expectation of gaussian
+is zero for linear and constant for quadratic cost ($\mathbb E[x_{t+1}^{\top}Vx_{t+1}] = (Ax_t + Bu_t)^{\top}V(Ax_t + Bu_t) + tr(VW)$, 
+so when minimizing it is ignored).
+
+For the nonlinear case, we linearlize it with reference point:
+\begin{align*}
+f(\mathbf{x}_t, \mathbf{u}_t) &\approx f(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t) + \nabla_{\mathbf{x}_t, \mathbf{u}_t} f(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t)
+\begin{bmatrix}
+\mathbf{x}_t - \hat{\mathbf{x}}_t \\
+\mathbf{u}_t - \hat{\mathbf{u}}_t
+\end{bmatrix} \\
+c(\mathbf{x}_t, \mathbf{u}_t) &\approx c(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t) + \nabla_{\mathbf{x}_t, \mathbf{u}_t} c(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t)
+\begin{bmatrix}
+\mathbf{x}_t - \hat{\mathbf{x}}_t \\
+\mathbf{u}_t - \hat{\mathbf{u}}_t
+\end{bmatrix} \\
+&\quad + \frac{1}{2}
+\begin{bmatrix}
+\mathbf{x}_t - \hat{\mathbf{x}}_t \\
+\mathbf{u}_t - \hat{\mathbf{u}}_t
+\end{bmatrix}^T
+\nabla^2_{\mathbf{x}_t, \mathbf{u}_t} c(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t)
+\begin{bmatrix}
+\mathbf{x}_t - \hat{\mathbf{x}}_t \\
+\mathbf{u}_t - \hat{\mathbf{u}}_t
+\end{bmatrix}
+\end{align*}
+and use 
+\[
+\bar{f}(\delta\mathbf{x}_{t},\delta\mathbf{u}_{t})  =\mathbf{F}_{t}
+\begin{bmatrix}
+\delta\mathbf{x}_{t} \\
+\delta\mathbf{u}_{t}
+\end{bmatrix}, 
+\left.\bar{c}(\delta\mathbf{x}_t,\delta\mathbf{u}_t)=\frac{1}{2}\left[
+\begin{array}
+{c}\delta\mathbf{x}_t \\
+\delta\mathbf{u}_t
+\end{array}\right.\right]^T\mathbf{C}_t
+\begin{bmatrix}
+\delta\mathbf{x}_t \\
+\delta\mathbf{u}_t
+\end{bmatrix}+
+\begin{bmatrix}
+\delta\mathbf{x}_t \\
+\delta\mathbf{u}_t
+\end{bmatrix}^T\mathbf{c}_t
+\]
+
+Now we can run LQR with it, this is called \mydefination{iLQR}, we get $u_t = K_t(x_t - \hat x_t) + k_t + \hat u_t$, 
+this is an approximation of Newton's method for solving the entire cost function over the horizon.
+And if we linearlize the dynamic with second order information:
+\[
+f(\mathbf{x}_t, \mathbf{u}_t) \approx f(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t) + \nabla_{\mathbf{x}_t, \mathbf{u}_t} f(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t)
+\begin{bmatrix}
+\delta \mathbf{x}_t \\
+\delta \mathbf{u}_t
+\end{bmatrix}
++\frac{1}{2} \left ( \nabla_{\mathbf{x}_t, \mathbf{u}_t}^2 f(\hat{\mathbf{x}}_t, \hat{\mathbf{u}}_t) \begin{bmatrix}
+\delta \mathbf{x}_t \\
+\delta \mathbf{u}_t
+\end{bmatrix} \right ) 
+\begin{bmatrix}
+\delta \mathbf{x}_t \\
+\delta \mathbf{u}_t
+\end{bmatrix}
+\]
+it is called \mydefination{DDP}.
 
 \end{document}
