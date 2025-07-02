@@ -175,6 +175,104 @@ Then we comes to LLM family.
     \label{fig:how_llm_works}
 \end{figure}
 
+First we need to deal with data.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.80\textwidth]{image/data_process.png}
+    \caption{Data Preprocess}
+    \label{fig:data_process}
+\end{figure}
+
+\begin{itemize}
+    \item Data Filtering: Removing the Noise, classifier-based, and heuristic-based frameworks. Handling Outliers. Addressing Imbalances. Text Preprocessing,
+removing stop words, punctuation or other elements that may not contribute significantly to the model's learning. Dealing with Ambiguities.
+    \item Deduplication: remove duplicate instances, this is important becuase duplicated data will bring biases. The method for this can vary a lot, like 
+fuzzy and exact deduplication.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+Then we need to tokenize the text.
+\begin{itemize}
+    \item BytePairEncoding
+    \item WordPieceEncoding, start from characters (same as BPE), but when merging, maximize the likelihood of the language model rather than based only on frequncy. 
+    \item SentencePieceEncoding, above two assume blank space seperate words, this method start from unicode characters.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+Let's we introduce positional encoding.
+\begin{itemize}
+    \item \mydefination{Absolute Positional Embedding} (APE), drawback is the restriction to a certain number of tokens, and does not count for relative distance.
+    \item \mydefination{Relative Positional Embedding} (RPE), add on keys and values.
+    \item \mydefination{Rotary Position Embeddings}, used in LLaMA.
+    \item \mydefination{Relative Positional Bias}, to facilitate extrapolation during inference.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+Model Pre-training:
+\begin{itemize}
+    \item Autoregressive Language Modeling, $\mathscr L_{ALM}(x) = \sum_{i=1}^N p(x_{i+n} \mid x_i, \ldots, x_{i+n-1})$
+    \item Masked Language Modeling, $\mathscr L_{MLM} = \sum_{i=1}^N p(\tilde x \mid x \setminus \tilde x)$
+    \item MoE
+\end{itemize}
+
+\vspace{\baselineskip}
+
+Fine-tuning and Instruction Tuning. Alignment.
+\begin{itemize}
+    \item RLHF and RLAIF (reinforcement learning from AI feedback).
+    \item DPO (Direct Preference Optimization ), RLHF is complex and unstable. They leveraged a mapping between reward functions and optimal policies to show 
+that this constrained reward maximization problem can be optimized exactly with a single stage of policy training, essentially solving a classification 
+problem on the human preference data.
+    \item Kahneman-Tversky Optimization (KTO), does not need paired preference date $(x, y_w, y_l)$, only need $(x, y)$ and knowledge of whether $y$ is desirable
+or undersirable.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.80\textwidth]{image/RLHF-vs-DPO.png}
+    \caption{RLHF vs DPO}
+    \label{fig:RLHF-vs-DPO}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.80\textwidth]{image/alignment_methods.png}
+    \caption{Alignment Methods}
+    \label{fig:alignment_methods}
+\end{figure}
+
+Decoding Strategies:
+\begin{itemize}
+    \item Greedy Search, use the most probable token, does not consider the entire sequence.
+    \item Beam Search, take $N$ most likely tokens, repeate until max length, and take the maximum total score.
+    \item top-k sampling, randomly choose one from k most likely options. $softmax(x_i) = e^{x_i / T} / \sum_j e^{x_j / T}$.
+    \item top-p sampling, also known as Nucleus sampling, choose $n$ tokens that $\sum_i^n p(t_i) > P$.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+Then we come to cost-efficient training, inference, adaption, compression methods.
+\begin{itemize}
+    \item Optimized training: Zero Redundancy Optimizer (ZeRO), data- and model-parallel. Receptance Weighted Key Value (RWKV) reformulates the attention 
+mechanism to operate in a recurrent fashion, linear time complexity and constant space complexity with respect to sequence length $T$.
+    \item Low-Rank Adaption (LoRA)
+    \item Knowledge Distillation, response distillation (only mimic outputs), feature distillation (also intermediate layers), API distillation (similar to
+response distillation).
+    \item Quantization, post training quantization and quantization-aware training.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.50\textwidth]{image/rwkv.png}
+    \caption{RWKV architecture}
+    \label{fig:rwkv}
+\end{figure}
+
+\subsection{How LLMs are used and augmented}
+
 \chapter{History Language Models}
 
 \section{Statistical Language Model}
@@ -186,5 +284,51 @@ in n-gram, $k$ is always $n-1$.
 
 In order to deal with unseen words and small probability of larger n-pairs, smooth method are often used, like 
 \mydefination{Laplace-smooth}.
+
+\chapter{LLM Techniques}
+
+\section{Model Architecture}
+
+\section{Dataset}
+
+\section{Tokenize}
+
+\section{Positional Encoding}
+
+\mydefination{Relative Positional Embedding}, the attention score is:
+\[ e_{ij} = \frac{(q_i + r_{i-j})k_j}{\sqrt{d_k}} \]
+where $r_{i-j}$ is an embedding output. Another variants add this to the key or the QK matrix or even to the value matrix.
+
+\mydefination{Rotary Position Embeddings}, let use $R$ for this operation, $q_p, k_p$ are query vector and key vector at position $p$, then attention score is:
+\[ \text{score}(q_p, k_p) = \langle R(q_p, p), R(k_p, p) \rangle \]
+And $R$ has property: $ \langle R(q, p), R(k, p^{'}) \rangle = \langle R(q, 0), R(k, p^{'} - p) \rangle $.
+
+The math: given $x = [(x_1, x_2), \ldots, (x_{d-1}, x_d)]$, each pair is rotated by an angle $\theta_i \cdot p$, $p$ is the position. 
+Let $z_i = x_{2i} + ix_{2i+1}$, $R(z_i,p) = z_i \cdot e^{i\theta_i p}$. The matrix form is:
+\[
+\begin{bmatrix}
+x_{2i}^{'} \\
+x_{2i + 1}^{'}
+\end{bmatrix}
+=
+\begin{bmatrix}
+\cos(\theta_i p) & -\sin(\theta_i p) \\
+\sin(\theta_i p) & -\cos(\theta_i p)
+\end{bmatrix}
+\begin{bmatrix}
+x_{2i} \\
+x_{2i + 1}
+\end{bmatrix}
+\]
+RoPE can extrapolate to unseen longer sequences.
+
+\mydefination{Relative Positional Bias}, the math is:
+\[ e_{ij} = \frac{q_i k_j}{\sqrt{d_k}} + b_{i-j} \]
+for the extrapolation during inference.
+
+\section{Pre-training}
+
+\mydefination{Low-Rank Adaption} (LoRA), $W_0 + \Delta W = W_0 + BA$, where initializations are $A \sim \mathcal N(0, \sigma^2), B=0$. Normally only attention
+weight will be adapted, the original weights are frozen.
 
 \end{document}
