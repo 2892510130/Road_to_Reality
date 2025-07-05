@@ -237,4 +237,46 @@ this has some problem, one is computing $A^N$ will return illed problem, make th
 we may not find a good initial $u$ for the system, if we use $x$ and $u$ both, then we can use $x$ as a guess, and when
 optimizing we will not at a werid position (for example a humanoid).
 
+\chapter{Some Control Techniques}
+
+\section{Model Predictive Control}
+
+\subsection{Linearlization of Nonlinear Model}
+
+Given model continuous dynamic $\dot x = F(s, v)$, jacobian as $F_s(x, u), F_v(x, u)$, we can discretize it with multiple methods.
+
+First we can use explicit Euler: start with $x^{+} = x_k, A_k = I, B_k = 0$:
+\begin{equation}
+\begin{array}{rll}
+    x^{+} & \leftarrow & x + F(x, u_k) T_i \\
+    \left[ A_k \quad B_k \right] & \leftarrow & \left( I + F_s(x, u_k) T_i \right) \left[ A_k \quad B_k \right] + \left[ 0 \quad f_u(x, u_k) T_i \right]
+\end{array}
+\end{equation}
+repeat this $N_s = T_s / T_i$ times to get $x^{+}$, where $T_s$ is the interval time step between two control points,
+this results an error of $\mathcal O(T_i)$.
+
+Then if we use Runge-Kutta 4, we get:
+
+\begin{algorithm}
+\caption{$N_S$ steps Runge-Kutta 4 with forward AD}
+\KwIn{$x_k$, $u_k$}
+\KwOut{$x^+$, $A_k$, $B_k$}
+$x^+ = x_k, \quad A_k = I, \quad B_k = 0$\;
+\For{$n = 1 : N_S$}{
+    $k_1 \gets F(x^+, u_k)$\;
+    $\left[ \frac{dk_1}{dx_k}, \frac{dk_1}{du_k} \right] \gets F_s(x^+, u_k) [ A_k \ B_k ] + [ 0 \ F_v(x^+, u_k) ]$\;
+    $k_2 \gets F(x^+ + \frac{T_i}{2} k_1, u_k)$\;
+    $\left[ \frac{dk_2}{dx_k}, \frac{dk_2}{du_k} \right] \gets F_s(x^+ + \frac{T_i}{2} k_1, u_k) [ (A_k + \frac{T_i}{2} \frac{dk_1}{dx_k}) \ (B_k + \frac{T_i}{2} \frac{dk_1}{du_k}) ] + [ 0 \ F_v(x^+ + \frac{T_i}{2} k_1, u_k) ]$\;
+    $k_3 \gets F(x^+ + \frac{T_i}{2} k_2, u_k)$\;
+    $\left[ \frac{dk_3}{dx_k}, \frac{dk_3}{du_k} \right] \gets F_s(x^+ + \frac{T_i}{2} k_2, u_k) [ (A_k + \frac{T_i}{2} \frac{dk_2}{dx_k}) \ (B_k + \frac{T_i}{2} \frac{dk_2}{du_k}) ] + [ 0 \ F_v(x^+ + \frac{T_i}{2} k_2, u_k) ]$\;
+    $k_4 \gets F(x^+ + T_i k_3, u_k)$\;
+    $\left[ \frac{dk_4}{dx_k}, \frac{dk_4}{du_k} \right] \gets F_s(x^+ + T_i k_3, u_k) [ (A_k + T_i \frac{dk_3}{dx_k}) \ (B_k + T_i \frac{dk_3}{du_k}) ] + [ 0 \ F_v(x^+ + T_i k_3, u_k) ]$\;
+    $x^+ \gets x^+ + \frac{T_i}{6} (k_1 + 2 k_2 + 2 k_3 + k_4)$\;
+    $[A_k \ B_k] \gets [A_k \ B_k] + \frac{T_i}{6} \left[ \frac{dk_2}{dx_k} \ \frac{dk_2}{du_k} \right] + 2 \left[ \frac{dk_3}{dx_k} \ \frac{dk_3}{du_k} \right] + \left[ \frac{dk_4}{dx_k} \ \frac{dk_4}{du_k} \right]$\;
+}
+\Return{$x^+$, $A_k$, $B_k$}
+\end{algorithm}
+
+\subsection{Real Time Iteration}
+
 \end{document}

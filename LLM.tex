@@ -37,6 +37,11 @@
 
 \begin{introduction}
     \item Early Pretrained Large Language Models
+    \item Large LLMs
+    \item LLM Techniques
+    \item Datesets
+    \item Benchmarks
+    \item Challenges and Future
 \end{introduction}
 
 More details please refre to \href{https://arxiv.org/abs/2402.06196}{Large Language Models: A Survey}.
@@ -272,6 +277,83 @@ response distillation).
 \end{figure}
 
 \subsection{How LLMs are used and augmented}
+
+\mydefination{Hallucinations}, categorized into instrinsic and extrinsic hallucination. We can use statistical and model-based matrices to measure it, for 
+example, ROUGE, BLEU, PARENT, Knowledge F1 are statistical, IE-Based, QA-Based, NLI-Based and Faithfulness Classification matrics are model-based. And human 
+scoring and comparative analysis is also vital. FactScore use both human and model-based, it breaks LLM generation into atomic facts. Ways to mitigate hallucination
+are Product Design and User Interaction Strategies, Data Management and Continuous Improvement, Prompt Engineering and Metaprompt Design, Model Selection and Configuration for Hallucination
+Mitigation.
+
+\vspace{\baselineskip}
+
+\mydefination{Prompt Engineering} approaches:
+\begin{itemize}
+    \item \mydefination{Chain of Thought} (CoT), described in \textit{Chain-of-Thought Prompting Elicits Reasoning in Large Language Models}, there are Zero-Shot
+CoT (let LLM think step by step) and Manual CoT (give example that shows the reasoning steps, it is better than zero-shot).
+    \item Tree of Thought (TOT), first branch out into multiple thought trees than converge, good for complex tasks.
+    \item Self-Consistency, generate multiple output and check the consistency, if they are consistent, then these outputs are more likely accurate.
+    \item Reflection, let LLM revise its answer.
+    \item Expert Prompting, let LLM response as an expert or more experts (which is better).
+    \item Chains, \textit{PromptChainer: Chaining Large Language Model Prompts through Visual Programming}, second task depend on first one, create a chain.
+    \item Rails, The concept of Rails involves setting up a framework or a set of guidelines that the LLM must follow while generating responses.
+    \item Automatic Prompt Engineering (APE), let LLM to generate the prompts, evaluate them and refine them and iterates.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+\mydefination{Retrieval Augmented Generation} (RAG): Forward-looking Active Retrieval Augmented Generation
+(FLARE) is an advanced RAG that will check the confidence level of the LLM outputs, if it is low, the output will be used as a query to retrieve again, this is
+a iterative methods. More details of RAG please refer to \textit{Retrieval-Augmented Generation for Large Language Models: A Survey}.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.75\textwidth]{image/rag.jpg}
+    \caption{RAG}
+    \label{fig:rag}
+\end{figure}
+
+\vspace{\baselineskip}
+
+Then the using of external tools, \textit{Toolformer: Language Models Can Teach Themselves to Use Tools} shows a demo. Automatic Multi-step Reasoning and Tool-use
+(ART) involves a systematic approache where, given a task and input, it will search from a task library for the similar task, use it as examples, we can also have
+tool library too.
+
+\vspace{\baselineskip}
+
+\mydefination{LLM Agents}: we introduce prompt engineering Techniques for agents, more information please refer to other surveys.
+\begin{itemize}
+    \item Reasoning without Observation (ReWOO), the LLM initially develops a plan (a series of steps) that outlines
+how to approach and solve a given problem. The execution phase then involves integrating actual data or observations into
+the pre-specified plan, leading to coherent and contextually relevant responses. This method is good for costly, slow retrieval.
+    \item Reason and Act (ReAct), the LLM is prompted to alternate between generating reasoning traces (explanations) and taking
+actions (steps or commands) in an interleaved manner.
+    \item Dialog-Enabled Resolving Agents (DERA), is developed based on the idea of utilizing multiple agents
+within a dialog context, each with specific roles and functions.
+\end{itemize}
+
+\subsection{Popular Datasets}
+These datasets are \ref{fig:datasets}, and in the paper there is a table for the evaluation metric and links.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.75\textwidth]{image/datasets.png}
+    \caption{LLM Datesets}
+    \label{fig:datasets}
+\end{figure}
+
+Evaluation, generate $n$ solution, and if $c$ pass:
+\[ \text{pass @} k = \mathbb E_{\text{problems}} \left [ 1 - \frac{\begin{pmatrix} n-c \\ k \end{pmatrix}}{\begin{pmatrix} n \\ k \end{pmatrix}} \right ] \]
+
+\mydefination{Exact Match}, must strictly match the true tokens than it returns 1 else returns 0. \mydefination{Human equivalence score} (HEQ) compare LLM with 
+average human accuracy.
+
+\subsection{Challenges and Future}
+
+\begin{enumerate}
+    \item Smaller model like Phi from Microsoft, more efficient training like parameter-efficient fine-tuning (PEFT).
+    \item New post-attention paradigms, like \mydefination{State Space Models} (SSMs)
+    \item Multi-modal LLM
+    \item Safe LLM
+    \item Agents
+\end{enumerate}
 
 \chapter{History Language Models}
 
