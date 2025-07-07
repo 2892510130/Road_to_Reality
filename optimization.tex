@@ -248,11 +248,11 @@ Given model continuous dynamic $\dot x = F(s, v)$, jacobian as $F_s(x, u), F_v(x
 First we can use explicit Euler: start with $x^{+} = x_k, A_k = I, B_k = 0$:
 \begin{equation}
 \begin{array}{rll}
-    x^{+} & \leftarrow & x + F(x, u_k) T_i \\
-    \left[ A_k \quad B_k \right] & \leftarrow & \left( I + F_s(x, u_k) T_i \right) \left[ A_k \quad B_k \right] + \left[ 0 \quad f_u(x, u_k) T_i \right]
+    x^{+} & \leftarrow & x^{+} + F(x^{+}, u_k) T_i \\
+    \left[ A_k \quad B_k \right] & \leftarrow & \left( I + F_s(x^{+}, u_k) T_i \right) \left[ A_k \quad B_k \right] + \left[ 0 \quad F_v(x^{+}, u_k) T_i \right]
 \end{array}
 \end{equation}
-repeat this $N_s = T_s / T_i$ times to get $x^{+}$, where $T_s$ is the interval time step between two control points,
+this two update should be update in parallel, not sequntial. Repeat this $N_s = T_s / T_i$ times to get $x^{+}$, where $T_s$ is the interval time step between two control points,
 this results an error of $\mathcal O(T_i)$.
 
 Then if we use Runge-Kutta 4, we get:

@@ -1,0 +1,283 @@
+\documentclass[10pt]{elegantbook}
+
+\title{Machine Learning Notes}
+\subtitle{All in the data.}
+
+\author{occupymars}
+\date{June. 23, 2025}
+\version{0.1}
+
+\cover{iron_man.jpg}
+
+% all the packages included
+\usepackage{cprotect}
+\usepackage{fontawesome}
+\usepackage[linesnumbered, ruled]{algorithm2e}
+\RestyleAlgo{algoruled}
+
+% set some fonts
+\setmonofont{Ubuntu Mono}
+
+% my own commands
+% \newcommand{\mydefination}[1]{\textit{\textcolor[RGB]{0,174,247}{#1}}}
+\newcommand{\mydefination}[1]{\textbf{\textit{\textcolor{structurecolor}{#1}}}}
+
+\begin{document}
+
+\maketitle
+
+\frontmatter
+\tableofcontents
+
+\mainmatter
+
+\chapter{Gaussian Process}
+
+\section{Gaussian processes for dynamics learning in model predictive control (2025)}
+
+\subsection{Overview of static Gaussian process regression}
+
+GPR was introduce in the statistics community by \textit{Curve Fitting and Optimal Design for Prediction}, and gained
+attention after \textit{Bayesian Learning for Neural Networks} proved that they can be regarded as neural networks of infinite
+width.
+
+Given two input data $Z = \{ z_1, \cdots, z_N \}, Z^* = \{ z^*_1, \cdots, z^*_N \}$, using the GP prior, we get:
+\[
+\begin{bmatrix}
+    g_Z \\ g_{Z^*}
+\end{bmatrix} \sim \mathcal N 
+\left (
+\begin{bmatrix}
+    0 \\ 0
+\end{bmatrix},
+\begin{bmatrix}
+    \mathscr{K}_{Z, Z} & \mathscr{K}_{Z, Z^*} \\
+    \mathscr{K}_{Z^*, Z} & \mathscr{K}_{Z^*, Z^*}
+\end{bmatrix}    
+\right )
+\]
+
+Now given observation for $Z$ as $Y = [y_1, \cdots, y_N]$, the posterior can be written as:
+\[
+p(g_Z, g_{Z^*} \mid Y) = \frac{p(Y \mid g_Z)p(g_Z, g_{Z^*})}{p(Y)}
+\]
+
+The kernel is often taken as Gaussian one:
+\[
+\mathscr{K}_{Z, Z^*} = \lambda \exp \left \{ -\frac{\| Z - Z^* \|^2}{2 \eta} \right \}
+\]
+
+If we are using the measurement model $y_i = g(z_i) + w_i$ and assume noise term is independent from prior $g$:
+\[
+Y \mid g_Z \sim \mathcal N (g_Z, \sigma_w^2 I_N)
+\]
+so the posterior is also Gaussian, we can get the posterior of interest:
+\[
+p(g_{Z^*} \mid Y) = \int_{\mathcal Z} \frac{p(Y \mid g_Z)p(g_Z, g_{Z^*})}{p(Y)} dg_Z
+\]
+then compute the first and second order moments, we get $g_{Z^*} \mid Y \sim \mathcal N (\mu(Z^*), \Sigma(Z^*))$:
+\[
+\left \{
+\begin{array}{lll}
+    \mu(Z^*) &=& \mathscr{K}_{Z^*, Z} (\mathscr{K}_{Z, Z} + \sigma_w^2 I_N)^{-1} Y \\
+    \Sigma(Z^*) &=& \mathscr{K}_{Z^*, Z^*} - \mathscr{K}_{Z^*, Z} (\mathscr{K}_{Z, Z} + \sigma_w^2 I_N)^{-1} \mathscr{K}_{Z, Z^*}
+\end{array}    
+\right .
+\]
+
+\begin{remark}
+    1, Alternative paradigms for uncertainty quantification, from RKHS to multi-arm bandits, frequency methods...
+\end{remark}
+
+The hyperparameters are estimated from a subset of data $(Z_h, Y_h)$ by optimizing the marginal likelihood:
+\begin{equation} \label{eq:hyper_opt}
+\text{argmax}_{\xi} ~ p(Y_h \mid \xi) = \text{argmax}_{\xi} ~ \int_{\mathbb R^N} p(Y_h \mid g_{Z_h}, \xi)p(g_{Z_h} \mid \xi)dg_{Z_h}
+\end{equation}
+if the measurement is i.i.d., then $Y_h \mid \xi \sim \mathcal N(0, \mathscr{K}_{Z_h, Z_h} + \sigma_w^2)$, so the above optimization
+problem can be written as a negative-log-likelihood minimization problem:
+\begin{equation} \label{eq:hyper_nll_opt}
+\text{argmax}_{\xi} ~ Y_h^{\top}(\mathscr{K}_{Z_h, Z_h} + \sigma_w^2)^{-1}Y_h + \log \det(\mathscr{K}_{Z_h, Z_h} + \sigma_w^2)
+\end{equation}
+we can use a gradient based method to optimize this one, however this cost is not convex, so its result maybe not global minimum and 
+thus unreliable. An alternative way is \mydefination{Markov Chain Monte Carlo} approaches, perform numerical integration on \ref{eq:hyper_opt}.
+
+\subsection{Gaussian processes for dynamical systems}
+A first option to describe a dynamical system is the Nonlinear, Auto-Regressive with eXogenous input (\mydefination{NARX}) model:
+\[
+y_i = g_{NARX}(y_{i-1}, \cdots, y_{\tau_y}, u_{i-1}, \cdots, u_{\tau_u}) + w_i
+\]
+
+We can write it as the state-space model:
+\begin{equation}
+    \left \{ 
+    \begin{array}{rll}
+        x_{i+1} &=& f(x_i, u_i) + v_i \\
+        y_i &=& g(x_i) + w_i
+    \end{array}    
+    \right .    
+\end{equation}
+where $f$ and $g$ denotes transition and emission maps, typically $g$ is known (even if it is not, we can augment it into 
+transition maps). There are two challenges, learning two maps and state inference (from $y$ get $x$), that is tackled by two
+different approaches in academic:
+\begin{itemize}
+    \item Optimizing latent state variables: treate the state variables as optimization variables, jointly optimize it with 
+model parameters to get maximum likelihood.
+    \item Alternating function learning and state inference: this method try to extend Bayesian techniques such as 
+\mydefination{Extended Kalman Filter}, \mydefination{Unscented Kalman Filter}, Assumed Density Filter, and Particle Filter 
+to non-parametric models, the approximation in these 
+studys are Taylor expansions, exact moment matching and particle representations. But when the state measurement
+are not available, we have to iteratively alternate between inferring the posterior and updating $ \xi $ to maximize the 
+marginal likelihood, using algorithm like \mydefination{Expectation Maximization}. The approximation to decrease the computational
+complexity are truncated orthogonal basis functions expansions (see [132, 133, 134]) and variational inference.
+\end{itemize}
+
+\subsection{Porblem formulation}
+The discrete model dynamic:
+\begin{equation} \label{eq:gp_dynamic_model}
+    x_{i+1} = g_{nom}(x_i, u_i) + B_d g(x_i, u_i) + v_i
+\end{equation}
+where $g_{nom}: \mathbb R^{n_x \times n_u} \rightarrow \mathbb R^{n_x}, g: \mathbb R^{n_x \times n_u} \rightarrow \mathbb R^{n_d}$, 
+if we do not have nominal model, then $B_d = I_{n_x}$.
+
+And we use $z_i = [x_i^{\top} \quad u_i^{\top}]^{\top}$, we will train $n_d$ GPs for each dimension separately.
+
+The optimal control problem is then:
+\begin{align}
+    \text{minimize}_{\{\pi_i\}} \quad & \mathbb{E} \left[ \bar{\mathcal{L}}_{\bar T}(x_{\bar T}) + \sum_{i=0}^{\bar T-1} \mathcal{\bar L_i}(x_i, u_i) \right] \\
+    \text{subject to} \quad & x_{i+1} = g_{\text{nom}}(x_i, u_i) + B_d g(x_i, u_i) + v_i \\
+    & u_i = \pi_i(x_i) \\
+    & \mathbb{P}(h_j(x_i, u_i) \leq 0, \forall i \geq 0) \geq p_j \quad \forall j=1,\ldots,n_h \\
+    & x_0 = \bar{x}_0
+\end{align}
+
+This problem is hard to solve, so we transform it to a MPC problem at time step $k$:
+\begin{align}
+    \text{minimize}_{\{\pi_i | k\}} \quad & \mathbb{E} \left[ \mathcal{L}_{T}(x_{T|k}) + \sum_{i=0}^{T-1} \mathcal{L_i}(x_{i|k}, u_{i|k}) \right] \\
+    \text{subject to} \quad & x_{i+1|k} = g_{\text{nom}}(x_{i|k}, u_{i|k}) + B_d g(x_{i|k}, u_{i|k}) + v_{i|k} \\
+    & u_{i|k} = \pi_{i|k}(x_{i|k}) \\
+    & \mathbb{P}(h_j(x_{i|k}, u_{i|k}) \leq 0, \forall i \geq 0) \geq p_j \quad \forall j=1,\ldots,n_h \\
+    & x_{0|k} = x_k
+\end{align}
+
+\subsection{Scalable methods for GPR}
+More detailed survey please refer to \textit{When Gaussian Process Meets Big Data: A Review of Scalable GPs}.
+
+\begin{table}[ht]
+\centering
+\caption{Computational Complexity of Gaussian Process Methods.}
+\begin{tabular}{lccccccc}
+\toprule
+& GP Full & Subset of Data & Expert-based & FTC & SSGP & SKI & SVGP \\
+\midrule
+Training  & $\mathcal O(N^3)$ & $\mathcal O(M^3)$ & $\mathcal O(NM_e^2)$ & $\mathcal O(NM^2)$ & $\mathcal O(Np^2)$ & $\mathcal O(N + M \log M)$ & $\mathcal O(M^3)$ \\
+Inference & $\mathcal O(N^2)$ & $\mathcal O(M^2)$ & $\mathcal O(M_e^2)$  & $\mathcal O(M^2)$  & $\mathcal O(p^2)$  & $\mathcal O(M \log M)$     & $\mathcal O(M^2)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\mydefination{Subset of Data}, sample data using some criterion (refer to \textit{Gaussian Process Models: PAC-Bayesian 
+Generalisation Error Bounds and Sparse Approximations}, chapter 4) and clustering. This will overestimate uncertainty, but 
+new study leveraging graphons complementss rigorous bounds for it. 
+
+We can also use multiple models for different regions for non-Stationarity or scalability. One of them is called \mydefination{Mixture-of-Experts}
+(MoE), given $N_{exp}$ GPs, denoting with $\{ s_k(\cdot) \}_{k=1}^{N_{exp}}$ a set of gating functions, the overall likelihood is
+\[
+p_{MoE}(y \mid g_z^1, \cdots, g_z^{N_{exp}}) = \sum_{k=1}^{N_{exp}} s_k(g_z^k)p_k(y \mid g_z^k)
+\]
+to scale well, we need to use infinite MoE or one of the approximation methods. We can also pre-allocate experts but this will
+lose connection between experts. See [166], [167] for online updates. And there is another method called "bagging".
+
+Instead of resorting to a linear combination of GPs, we can use \mydefination{Product-of-Experts} (PoE), where
+\[
+p_{PoE}(y \mid g_z^1, \cdots, g_z^{N_{exp}}) \propto \prod_{k=1}^{N_{exp}} p_k(y \mid g_z^k)
+\]
+this will make weak expert plays which is not good, so we can use weighted product and Bayesian Committee Machine, combined
+we have [174]. MoE and PoE combine in \textit{Deep Structured Mixtures of Gaussian Processes}. Analysis of theory 
+in \textit{An asymptotic analysis of distributed nonparametric methods}.
+
+\mydefination{Inducing Variables}, given inducing points (pseudo-inputs) $\bar Z$ and $g_{\bar Z} \sim \mathcal N(0, \mathscr{K}_{\bar Z, \bar Z})$, 
+$g_Z$ and $g_{Z^*}$ are conditionally independent, they can only communicate through $g_{\bar Z}$. There are two main groups,
+one is approximate prior $p(g_Z, g_{Z^*})$ and do exact inference (reviewed in \textit{A Unifying View of Sparse Approximate Gaussian Process Regression}),
+one is from original prior and approximate $p(g_{Z^*} \mid Y)$ (reviewed in \textit{A unifying framework for Gaussian process pseudo-point approximations using power expectation propagation}),
+they are compared in \textit{Understanding Probabilistic Sparse Gaussian Process Approximations}.
+
+First we talk about method approximating prior, with:
+\begin{equation}
+    \begin{array}{rll}
+        p(g_{Z},g_{Z^{*}}) &=& \int p(g_{Z},g_{Z^{*}}|g_{\bar Z})p(g_{\bar Z})d g_{\bar Z} \\ 
+        &\approx&\int q(g_{Z}|g_{\bar Z})q(g_{Z^{*}}|g_{\bar Z})p(g_{\bar Z})d g_{\bar Z} \\
+        &=& q(g_{Z},g_{Z^{*}})
+    \end{array}
+\end{equation}
+the choice of $q(g_{Z}|g_{\bar Z}) = \mathcal N(\mathscr{K}_{Z, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}g_{\bar Z}, \tilde Q_{Z, Z})$ 
+and $q(g_{Z^{*}}|g_{\bar Z}) = \mathcal N(\mathscr{K}_{Z^*, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}g_{\bar Z}, \tilde Q_{Z^*, Z^*})$ 
+will differ between different methods below. The conditional distribution is actully $q(g_{Z}|g_{\bar Z}) = \mathcal N(\mathscr{K}_{Z,
+ \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}g_{\bar Z}, \mathscr{K}_{Z, Z} - \mathscr{K}_{Z, \bar Z}
+ \mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z}$), 
+refer to \href{https://statproofbook.github.io/P/mvn-cond.html}{proof}, $\tilde Q$ is a low rank matrix.
+\begin{itemize}
+    \item \mydefination{Subset of Regressors} (SoR), $\mathscr{K}_{Z, Z} \approx \mathscr{K}_{Z, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z} = Q_{Z, Z}$,
+so covariance of $q(g_{Z}|g_{\bar Z})$ and $q(g_{Z^{*}}|g_{\bar Z})$ is $\tilde Q_{Z, Z} = Q_{Z, Z} - \mathscr{K}_{Z, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z}= 0$, 
+possibly leading to overconfident predictions. $g_{Z^{*}} = \mathscr{K}_{Z^*, \bar Z} W_{\bar Z}, W_{\bar Z} \sim \mathcal N(0, \mathscr{K}_{\bar Z, \bar Z}^{-1})$, 
+$W_{\bar Z}$ can also be written as $\mathscr{K}_{\bar Z, \bar Z}^{-1} \bar Z$.
+    \item \mydefination{Deterministic Training Conditional} (DTC), same mean of SoR, covariance is more sensible but the result 
+is an inconsistent GP.
+    \item \mydefination{Fully Independent Conditional} (FIC), assume $g_{Z}$ and $g_{Z^{*}}$ are independent of $g_{\bar Z}$,
+and \mydefination{Fully Independent Training Conditional} (FITC) admits the factorization on the training conditional only, at the price of having again an inconsistent
+GP. \textbf{If the prediction is to be performed on a single point, this two method coincide}.
+    \item \mydefination{Partially Independent (Training) Conditional} (PI(T)C) generalizes FI(T)C by
+introducing a block structure in the covariance. There maybe no significant improve with respect to FI(T)C.
+\end{itemize}
+
+These methods lead to an approximation marginal likelihood:
+\begin{equation} \label{eq:inducing_ml}
+    q(Y) = \mathcal N(0, \tilde Q_{Z, Z} + \mathscr{K}_{Z, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z} + \sigma^2_w I_N)
+\end{equation}
+the choice of inducing points can be same as subset of data method, using information gain, online learning and greedy posterior maximization.
+Or we can treat them as hyperparameters, and maximized by \ref{eq:inducing_ml}, which is complicated and may lead to local optimal and over-fitting.
+Other methods can be seen in MCMC schemes, which will taker longer traning times.
+
+Second we talk about approximate the posterior. We can use so-called \mydefination{Variational Free Energy} (VFE) to get:
+\begin{equation}
+    \begin{array}{rll}
+    p(g_{Z^*} | Y) &=& \int \int p(g_{Z^*} | g_{Z}, g_{\bar Z})p(g_{Z} | g_{\bar Z}, Y)p(g_{\bar Z} | Y)dg_{Z}g_{\bar Z} \\
+    & \approx & q(g_{Z^*}) \\
+    &=& \int \int p(g_{Z^*} | g_{\bar Z}) p(g_{Z} | g_{\bar Z}) p(g_{\bar Z} | Y)dg_{Z}g_{\bar Z} \\
+    &=& \int p(g_{Z^*} | g_{\bar Z}) p(g_{\bar Z} | Y) dg_{\bar Z} \\
+    &\approx & \int p(g_{Z^*} | g_{\bar Z}) q(g_{\bar Z}) dg_{\bar Z}
+    \end{array}
+\end{equation}
+where $p(g_{Z^*} | g_{Z}, g_{\bar Z}, Y) = p(g_{Z^*} | g_{Z}, g_{\bar Z})$ because $Y$ is just a noisy version of $g_Z$ and 
+$g_{\bar Z}$ is sufficient.
+
+We then use variational inference to choose $g_{\bar Z}$ and $\bar Z$, by minimizing Kullback-Leibler (KL) divergence:
+\[
+    \mathcal{KL} \left ( q(g_{Z^{*}},g_{Z}) \| p(g_{Z^{*}},g_{Z}|Y) \right ) = \log p(Y) - \mathbb E_{q(g_{\bar Z},g_{Z})}
+\left [ \frac{p(Y, g_{\bar Z},g_{Z})}{q(g_{\bar Z},g_{Z})} \right ]
+\]
+I think here log is for both term, and I think left side $Z^*$ should be $\bar Z$, or the $=$ should be $\approx$.
+
+In [204] we get $g(g_{\bar Z}) = \mathcal N(\mu_q, \Sigma_q)$, where:
+\[
+\begin{array}{lll}
+    \mu_{q} &=& \sigma_{w}^{-2}\mathscr{K}_{\bar{Z}, \bar{Z}}(\mathscr{K}_{\bar{Z}, \bar{Z}}+\sigma_{w}^{-2}\mathscr{K}_{\bar{Z}, Z}\mathscr{K}_{Z, \bar{Z}})^{-1}\mathscr{K}_{\bar{Z}, Z}Y \\
+    \Sigma_q &=& \mathscr{K}_{\bar{Z}, \bar{Z}} (\mathscr{K}_{\bar{Z}, \bar{Z}} + \sigma_{w}^{-2}\mathscr{K}_{\bar{Z}, Z}\mathscr{K}_{Z, \bar{Z}})^{-1} \mathscr{K}_{\bar{Z}, \bar{Z}}
+\end{array}
+\]
+and the hyperparameters can be found by optimizing:
+\[
+\log p(Y) - \log [ \mathcal N(0,\sigma_{w}^{2}+\mathscr{K}_{Z, \bar{Z}} \mathscr{K}_{\bar{Z}, \bar{Z}}^{-1} \mathscr{K}_{\bar{Z}, Z} ] + \frac{1}{\sigma^2_w} 
+\text{Tr}(\mathscr{K}_{Z, Z} - \mathscr{K}_{Z, \bar{Z}} \mathscr{K}_{\bar{Z}, \bar{Z}}^{-1} \mathscr{K}_{\bar{Z}, Z})
+\]
+the predictive distribution is the same as the one obtained in the DTC approach, but the optimization problem yielding 
+hyperparameters and pseudo-inputs differs by the last  addendum, which plays the role of a regularizer and
+acts against over-fitting. And the relation with FITC in [220], [221] for mini-batch training. Pseudo-inputs can be set 
+arbitraily, or use SKI, or from training inputs.
+
+Sparse GP error estimation in [230], [231].
+
+\mydefination{Finite-dimensional representations} of the kernel operator is next method, as above sparse GP revolve
+around the concept of eigen-decomposition of Gram matrices $\mathscr{K}_{Z, Z}$, this one consider eigen-decomposation of the kernel operator
+$\mathscr{K}: Z \times Z \rightarrow \mathbb R$.
+
+\end{document}
