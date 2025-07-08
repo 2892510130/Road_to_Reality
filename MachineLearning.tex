@@ -76,14 +76,14 @@ so the posterior is also Gaussian, we can get the posterior of interest:
 p(g_{Z^*} \mid Y) = \int_{\mathcal Z} \frac{p(Y \mid g_Z)p(g_Z, g_{Z^*})}{p(Y)} dg_Z
 \]
 then compute the first and second order moments, we get $g_{Z^*} \mid Y \sim \mathcal N (\mu(Z^*), \Sigma(Z^*))$:
-\[
+\begin{equation} \label{eq:gp_mean_cov}
 \left \{
 \begin{array}{lll}
     \mu(Z^*) &=& \mathscr{K}_{Z^*, Z} (\mathscr{K}_{Z, Z} + \sigma_w^2 I_N)^{-1} Y \\
     \Sigma(Z^*) &=& \mathscr{K}_{Z^*, Z^*} - \mathscr{K}_{Z^*, Z} (\mathscr{K}_{Z, Z} + \sigma_w^2 I_N)^{-1} \mathscr{K}_{Z, Z^*}
 \end{array}    
 \right .
-\]
+\end{equation}
 
 \begin{remark}
     1, Alternative paradigms for uncertainty quantification, from RKHS to multi-arm bandits, frequency methods...
@@ -175,7 +175,7 @@ Inference & $\mathcal O(N^2)$ & $\mathcal O(M^2)$ & $\mathcal O(M_e^2)$  & $\mat
 \end{tabular}
 \end{table}
 
-\mydefination{Subset of Data}, sample data using some criterion (refer to \textit{Gaussian Process Models: PAC-Bayesian 
+\mydefination{1. Subset of Data}, sample data using some criterion (refer to \textit{Gaussian Process Models: PAC-Bayesian 
 Generalisation Error Bounds and Sparse Approximations}, chapter 4) and clustering. This will overestimate uncertainty, but 
 new study leveraging graphons complementss rigorous bounds for it. 
 
@@ -195,7 +195,7 @@ this will make weak expert plays which is not good, so we can use weighted produ
 we have [174]. MoE and PoE combine in \textit{Deep Structured Mixtures of Gaussian Processes}. Analysis of theory 
 in \textit{An asymptotic analysis of distributed nonparametric methods}.
 
-\mydefination{Inducing Variables}, given inducing points (pseudo-inputs) $\bar Z$ and $g_{\bar Z} \sim \mathcal N(0, \mathscr{K}_{\bar Z, \bar Z})$, 
+\mydefination{2. Inducing Variables}, given inducing points (pseudo-inputs) $\bar Z$ and $g_{\bar Z} \sim \mathcal N(0, \mathscr{K}_{\bar Z, \bar Z})$, 
 $g_Z$ and $g_{Z^*}$ are conditionally independent, they can only communicate through $g_{\bar Z}$. There are two main groups,
 one is approximate prior $p(g_Z, g_{Z^*})$ and do exact inference (reviewed in \textit{A Unifying View of Sparse Approximate Gaussian Process Regression}),
 one is from original prior and approximate $p(g_{Z^*} \mid Y)$ (reviewed in \textit{A unifying framework for Gaussian process pseudo-point approximations using power expectation propagation}),
@@ -221,12 +221,14 @@ so covariance of $q(g_{Z}|g_{\bar Z})$ and $q(g_{Z^{*}}|g_{\bar Z})$ is $\tilde 
 possibly leading to overconfident predictions. $g_{Z^{*}} = \mathscr{K}_{Z^*, \bar Z} W_{\bar Z}, W_{\bar Z} \sim \mathcal N(0, \mathscr{K}_{\bar Z, \bar Z}^{-1})$, 
 $W_{\bar Z}$ can also be written as $\mathscr{K}_{\bar Z, \bar Z}^{-1} \bar Z$.
     \item \mydefination{Deterministic Training Conditional} (DTC), same mean of SoR, covariance is more sensible but the result 
-is an inconsistent GP.
+is an inconsistent GP (train with low-rank approximation, test with full variance).
     \item \mydefination{Fully Independent Conditional} (FIC), assume $g_{Z}$ and $g_{Z^{*}}$ are independent of $g_{\bar Z}$,
 and \mydefination{Fully Independent Training Conditional} (FITC) admits the factorization on the training conditional only, at the price of having again an inconsistent
-GP. \textbf{If the prediction is to be performed on a single point, this two method coincide}.
+GP. \textbf{If the prediction is to be performed on a single point, this two method coincide}. $\mathscr{K}_{FITC} = 
+\mathscr{K}_{Z, \bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z} + \text{diag} (\mathscr{K}_{Z, Z} - Q_{Z, Z})$
     \item \mydefination{Partially Independent (Training) Conditional} (PI(T)C) generalizes FI(T)C by
 introducing a block structure in the covariance. There maybe no significant improve with respect to FI(T)C.
+$\mathscr{K}_{PITC} = Q_{Z, Z} - \text{block.diag}(\mathscr{K}_{Z, Z} - Q_{Z, Z})$.
 \end{itemize}
 
 These methods lead to an approximation marginal likelihood:
@@ -272,12 +274,191 @@ and the hyperparameters can be found by optimizing:
 the predictive distribution is the same as the one obtained in the DTC approach, but the optimization problem yielding 
 hyperparameters and pseudo-inputs differs by the last  addendum, which plays the role of a regularizer and
 acts against over-fitting. And the relation with FITC in [220], [221] for mini-batch training. Pseudo-inputs can be set 
-arbitraily, or use SKI, or from training inputs.
+arbitraily, or use \mydefination{SKI} (structured kernel interpolation, kernel with structure good for efficient calculation), 
+or from training inputs.
 
 Sparse GP error estimation in [230], [231].
 
-\mydefination{Finite-dimensional representations} of the kernel operator is next method, as above sparse GP revolve
-around the concept of eigen-decomposition of Gram matrices $\mathscr{K}_{Z, Z}$, this one consider eigen-decomposation of the kernel operator
-$\mathscr{K}: Z \times Z \rightarrow \mathbb R$.
+\mydefination{3. Finite-dimensional representations} of the kernel operator is next method, as above sparse GP revolve
+around the concept of eigen-decomposition of Gram matrices $\mathscr{K}_{Z, Z}$, this one consider eigen-decomposition of the kernel operator
+$\mathscr{K}: Z \times Z \rightarrow \mathbb R$. 
+
+The first one is \mydefination{Sparse Spectrum Gaussian processes} (SSGP), introduced in [234], using sum of Fourier features. 
+It is suitable for stationary kernels:
+\[
+\mathscr{K}(z_a, z_b) = \int \exp \{ 2 \pi i s^{\top} (z_a - z_b) \} S(s)ds
+\]
+where $S(s)$ is proportional to $p_S(s)$, for Gaussian kernel:
+\[
+p_{S}(s)= \frac{1}{\lambda} \int \exp\{-2\pi i s^{\mathsf{T}}(z_{a}-z_{b})\}{\mathscr{K}}(z_{a},z_{b})d z = \sqrt{2\pi\eta^{n_{z}}}\exp\{-2\pi^{2}\eta \| s \|^{2}\}
+\]
+which is a multivariate Gaussian. Using MC method, sample $\{ s_r, -s_r \}_{r=1}^{M/2}$ to respect symmetry and exploiting 
+trigonometric identities:
+\[
+\mathscr{K}(z_{a},z_{b})\approx\frac{\lambda}{M}\sum_{r=1}^{M/2} \left (\cos(2\pi s_{r}^{\top}z_{a})\cos(2\pi 
+s_{r}^{\top}z_{b}) + \sin(2\pi s_r^{\top} z_a) \sin(2\pi s_r^{\top} z_b) \right )
+\]
+Then the kernel is approximate to $\mathscr{K}(z_{a},z_{b}) = \left\langle\phi(z_{a}),\phi(z_{b})\right\rangle$, where 
+\[
+\phi(z) = [\cos(2\pi s_{1}^{\textsf{T}}z),\cdots,\cos(2\pi s_{M/2}^{\textsf{T}}z),\cdots ,\sin(2\pi s_{M/2}^{\textsf{T}}z)]^{\top}
+\]
+then $g(z) \approx \phi(z)^{\top} \alpha$.
+
+Another one aims for a series expansion of the type (see Mercer's Theorem):
+\[
+\mathscr{K}(z_{a},z_{b}) = \sum_{k=1}^{+\infty}\gamma_{k}\varphi_{k}(z_{a})\varphi_{k}(z_{b})
+\]
+such that $\int \mathscr{K}(z_{a},z_{b})\varphi_{k}(z_{a})p_{z}(z_{a})d z_{a}=\gamma_{k}\varphi_{k}(z_{b})$, where 
+$\{ \varphi_k \}_{k=1}^{+\infty}$ is a family of orthonormal functions with respect to the measure induced by $p_z(\cdot)$,
+and $\{ \gamma_k \}_{k=1}^{+\infty}$ is a set of decreasing, non-negative values.
+
+\mydefination{4. Computational techniques} is the last topic in this section. 
+
+First we talk about \mydefination{Nystrom approximation}, $\mathscr{K}_{Z, Z} \approx \mathscr{K}_{Z, 
+\bar Z}\mathscr{K}_{\bar Z, \bar Z}^{-1}\mathscr{K}_{\bar Z, Z}$, can be efficiently obtained from an incomplete (block)
+column-based Cholesky decomposition when the same (block) columns are selected.
+
+Secondly, \mydefination{Conjugate gradient} (CG) method is for optimization problem $\min_x \frac{1}{2} x^{\top} A x -x^{\top}b$,
+iteratively refines its solution estimate by performing the minimization successively in a growing subspace of orthogonal 
+search directions. Computational complexity is $\mathcal O(PN^2)$, where $P$ is the iteration, and CG can guarantee to when 
+$P = N$, it will recover the exact solution. But we will make $P \ll N$ to get efficience while get a good approximation.
+With efficient MVMs (matrix-vector multiplications) of SKI, CG can speed up sparse GP.
+
+Thirdly, the \mydefination{parallelization of computations}, for MoE, inducing point method (PITC has the block structure, using low-rank-cum-Markov
+approximations), Nystrom approximation (row-based Cholesky decomposition), CG (batch version).
+
+\mydefination{5. online learning}:
+\begin{itemize}
+    \item \mydefination{Active-data selection}, using a variety of methods to add or delete data points in dataset.
+    \item Expert-based methods, compute the distance of new data and each local model, and update corresponding local model.
+    \item Incuding point methods, [358] for FITC, [366] for VFE, a lot of papers mentioned.
+    \item Finite-dimensional approximations of kernel operator,  [245] for SSGP and other.
+    \item Computational methods, leverage SKI [382]
+\end{itemize}
+
+\subsection{Uncertainty Propagation}
+
+Directly predict n-step, [387-389]. Indirect method, iteratively do one-step prediction, neglect non-consecutive states relation, 
+the uncertainty prediction can be deteriorate [391].
+
+\mydefination{1. Independent one-step-ahead predictions}, with ramdom $Z^*$:
+\begin{equation} \label{eq:posterior_of_ramdom_input}
+    p(g_{Z^{*}}|Y)=\int p(g_{Z^{*}}|Z^{*},Y)p(Z^{*})d Z^{*}
+\end{equation}
+the integral is the product of two Gaussian (if we assume $p(Z^{*}) = \mathcal N(\mu^*, \Sigma^*)$), it is not analytic, 
+note that $p(g_{Z^{*}}|Z^{*},Y) = \mathcal N(\mu(Z^*), \Sigma(Z^*))$.
+We actually only need first and second moments, which are given as:
+\begin{equation} \label{eq:expect_mean_and_cov}
+\begin{array}{lll}
+\mathbb{E}_{g_{Z^*}}[g_{Z^*} \mid \mathbf{Y}] 
+&=& \mathbb{E}_{Z^*}[\mathbb{E}_{g_{Z^*}}[g_{Z^*} \mid Z^*, \mathbf{Y}]] \\
+&\overset{\ref{eq:gp_mean_cov}}{=}& \mathbb{E}_{Z^*}[\mu(Z^*)], \\
+\text{Var}_{g_{Z^*}}[g_{Z^*} \mid \mathbf{Y}] 
+&=& \mathbb{E}_{Z^*}[\text{Var}_{g_{Z^*}}[g_{Z^*} \mid Z^*, \mathbf{Y}]] 
++ \text{Var}_{Z^*}[\mathbb{E}_{g_{Z^*}}[g_{Z^*} \mid Z^*, \mathbf{Y}]] \\
+&\overset{\ref{eq:gp_mean_cov}}{=}& \mathbb{E}_{Z^*}[\Sigma(Z^*)] 
++ \text{Var}_{Z^*}[\mu(Z^*)].
+\end{array}
+\end{equation}
+
+We have three ways to approximate this. First is \mydefination{Linearlization}, using Taylor expansion:
+\begin{equation}
+    \begin{array}{lll}
+        \mu(z^{\ast}) & \approx & \mu(\mu^{\ast})+\nabla_{z}\mu(z)|_{z=\mu^{\ast}}^{\top}(z^{\ast}-\mu^{\ast})
+        \\ \Sigma(z^{\ast}) & \approx & \Sigma(\mu^{\ast})+\nabla_{z}\Sigma(z)|_{z=\mu^{\ast}}^{\top}(z^{\ast}-\mu^{\ast}) + 
+        \frac{1}{2}(z^{\ast}-\mu^{\ast})^{\top}\nabla_{z}^{2}\Sigma(z)|_{z=\mu^{\ast}}^{\ast}(z^{\ast}-\mu^{\ast})
+    \end{array}
+\end{equation}
+which then:
+\begin{equation}
+\begin{array}{lll}
+\mathbb{E}_{Z^*}[\mu(Z^*)] &\approx& \mathbb{E}_{Z^*}[\mu(\mu^*) + \nabla_z \mu(z)\big|_{z = \mu^*}^{\!\!\!\!\!\!\top} (Z^* - \mu^*)] 
+= \mu(\mu^*), \\
+\mathbb{E}_{Z^*}[\Sigma(Z^*)] &\approx& \mathbb{E}_{Z^*}[\Sigma(\mu^*) + \nabla_z \Sigma(z)\big|_{z = \mu^*} (Z^* - \mu^*) + \frac{1}{2} (Z^* - \mu^*)^\top \nabla_z^2 \Sigma(z)\big|_{z = \mu^*} (Z^* - \mu^*)] \\
+&=& \Sigma(\mu^*) + \frac{1}{2} \mathrm{Tr}\left\{\nabla_z^2 \Sigma(z)\big|_{z = \mu^*} \Sigma^*\right\}, \\
+\mathrm{Var}_{Z^*}[\mu(Z^*)] &\approx& \mathrm{Var}_{Z^*}[\mu(\mu^*) + \nabla_z \mu(z)\big|_{z = \mu^*}^{\!\!\!\!\!\!\top} (Z^* - \mu^*)] 
+= \nabla_z \mu(z)\big|_{z = \mu^*}^{\!\!\!\!\!\!\top} \Sigma^* \nabla_z \mu(z)\big|_{z = \mu^*}.
+\end{array}
+\end{equation}
+
+Secondly, we have \mydefination{Exact Moment Matching}, if we using Gaussian kernel and assume Gaussian input, then the 
+integral of \ref{eq:expect_mean_and_cov} can be derived:
+\[
+\mathbb{E}_{z^{*}}[\mu(z^{*})]=\int\mu(z^{*})p(z^{*})d z^{*} = \beta^{\top} \mathbf l
+\]
+where $\beta = (\mathscr{K}_{Z, Z} + \sigma_w^2 I_N)^{-1} Y$ and $\mathbf l = [l_1, \ldots, l_N]$ is function of $z_i, \mu^*
+, \Sigma^*$ and hyperparameters.
+\[
+\begin{array}{lll}
+    \text{Var}_{g_{Z^*}}[g_{Z^*} \mid \mathbf{Y}] 
+    &=& \mathbb{E}_{Z^*}[\Sigma(Z^*)] + \mathbb{E}_{Z^*}[\mu^2(Z^*)] - \left( \mathbb{E}_{Z^*}[\mu(Z^*)] \right)^2 \\
+    &=& \beta^\top L \beta - \mathrm{Tr} \left\{ \left( \mathscr{K}_{Z,Z} + \sigma_w^2 I_N \right)^{-1} L \right\} - \left( \beta^\top \mathbf{l} \right)^2,
+\end{array}
+\]
+
+Thirdly, we have \mydefination{Sigma-point propagation}, we compute sigma-point for $z^* \sim \mathcal (\mu^*, \Sigma^*)$,
+we denote by $\{\bar{z}_{j}^{*}\}_{j=0}^{2n_{z}}$, where $n_z$ is the dimensionality of $z$.
+\begin{equation}
+    \begin{array}{lll}
+        \bar{z}_{0}^{*} &=& \mu^{*} \\
+        \bar{z}_{j}^{*} &=& \mu^{*}+\sqrt{n_{z}+\lambda_{m m}}[\mathrm{chol}(\Sigma^{*})]_{j}, \quad \text{for} ~j=1, \ldots, n_z \\
+        \bar{z}_{j}^{*} &=& \mu^{*}-\sqrt{n_{z}+\lambda_{m m}}[\mathrm{chol}(\Sigma^{*})]_{j}, \quad \text{for} ~j=n_z + 1, \ldots, 2n_z \\
+    \end{array}
+\end{equation}
+where $[\mathrm{chol}(\Sigma^{*})]_{j}$ is the $j-th$ column of the Cholesky factorization of matrix $\Sigma^*$, and $\lambda_{m m}$
+is a user-defined parameter representing how far the sigmapoints are spread from the mean. By viewing the $g$ as $g = \mu + \tilde w$,
+where $\tilde w \sim \mathcal N(0, \Sigma)$ is treated as "process noise", we can approximate $\mathbb E_{g_{Z^*}}[g_{Z^*} | Y]$ by
+evaluating $\mu$ on the sigma-points:
+\[
+\mathbb{E}_{g_{z^{*}}}[g_{z^{*}} | Y]\approx\mu_{\mathrm{sp}}=\sum_{j=0}^{2n_{z}}W_{j}^{m}\mu({\bar{z}_{j}^{*}}).
+\]
+and the variance is:
+\[
+\text{Var}_{g_{z^{*}}}[g_{z^{*}} | Y] \approx\sum_{j=0}^{2n_{z}}W_{j}^{v}(\mu(\bar{z}_{j}^{*})-\mu_{\mathrm{sp}})(\mu(\bar{z}_{j}^{*})-\mu_{\mathrm{sp}})^{T}+\Sigma(\mu^{*}).
+\]
+the weights are choose to sum to 1, how to tune them can be found in [117]. This method can be compared to MC method, first 
+one choose the points deterministicly, second one randomly (but it does not need the assumption of GP prior).
+
+Fourth is the numerical approximation, \ref{eq:posterior_of_ramdom_input} can be computed using MC. [403] tackles the computational
+issue, where the sampling process is guided by a measure of correlation to the previous evaluations.
+
+The above methods handle uncertainty in inference, does not exploit them in training. So here we talk about them, and they 
+are connected to treate latent variables as optimization variables in the second section [108]. Or we can use Gaussian mixture 
+models [397].
+
+\mydefination{2. Robust uncertainty propagation}, try to give a deterministic bound rather than stochastic one for the propagation.
+Model the $z \in \mathcal E(z_p, Q_p)$ which is an ellipsoidal confidence region, and it can maintain its shape throgh the $\tilde{g} = 
+g_{\mathrm{nom}}(\bar{z})+\nabla_{z}g_{\mathrm{nom}}(z)|_{z=\bar{z}}^{\mathsf{T}}(z-\bar{z}) + \mu(\bar z)$. This method maybe too 
+conservative. More detail please refer to [407].
+
+\mydefination{3. Overcomming the independece assumption}, iteratively recondition the GP model, enabling a
+scenario-based [411] control design. while this may face the curse of dimensionality, other method try to approximate it 
+with finite horizon [415], [391].
+
+\subsection{Closed-loop Safty Guarantees}
+\begin{itemize}
+    \item Bounded support assumption: \mydefination{compact set} is bounded and the bound is inside it (for Euler space, other 
+    general case need to use Open coverage to define). In this assumption, the error is bounded with 
+    $C_{\delta}=\{\varepsilon:\mathbb{P}(\varepsilon\in C_{\delta})\geq{\mathbf{1}}-\delta\}$, where $\delta$ is a small 
+    probability.
+    \item Robust-in-probability, define $\triangle=\left\{g(x,u)\in{\cal G}(x,u) \mathrm{~ for ~ all ~} (x,u)\in\mathcal{Z}\right\}$,
+    this method guarantee that $\mathbb P(\triangle) \geq p$. Here $\cal G$ is high probability region. Ensuring that 
+    \[ \mathbb{P}(h_{j}(x_{i},u_{i})\leq0, ~ \forall i\geq0, ~ \forall\{j\}_{j=1}^{n_{h}}\mid\triangle)=1 \]
+    we can then make sure:
+    \[
+    \begin{array}{l}
+        \mathbb{P}(h_{j}(x_{i},u_{i})\leq0, ~ \forall i\geq0, ~ \forall\{j\}_{j=1}^{n_{h}}) \\
+        \geq \mathbb{P}(h_{j}(x_{i},u_{i})\leq0, ~ \forall i\geq0, ~ \forall\{j\}_{j=1}^{n_{h}}\mid\triangle) P(\triangle) \\
+        \geq p
+    \end{array}
+    \]
+    such a region construction can be found in [62], a complete survey can be found in [64].
+    \item Sampling-based approach, [413], [414], [427] samples GP to get tightened constraints. This method is not conservative,
+but it is computational heavy.
+    \item other results, generally consider point-wise-in-time chance constraints, can be seen in [432]...
+\end{itemize}
+
+\subsection{Discussion}
+\mydefination{1. MPC with Scalable GP}, 
 
 \end{document}
