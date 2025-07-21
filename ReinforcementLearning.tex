@@ -31,7 +31,7 @@
 
 \mainmatter
 
-\chapter{Reinforcement Learning Basics}
+\chapter{Math of Reinforcement Learning}
 
 \begin{introduction}
     \item Markov Decision Process
@@ -45,7 +45,7 @@
 \mydefination{State} and \mydefination{Action} can describe a robot state respect to the enviroment and actions to move around, 
 $\mathcal S, \mathcal A$ are states and actions a robot can take, when taking an action, state after may not
 be deterministic, it has a probability. We use a transition function $T: \mathcal S \times \mathcal A \times 
-\mathcal S \rightarrow [0, 1]$ to denote this, $T(s, a, s') = P(s' \mid s,a)$ is the probability of reaching $s'$
+\mathcal S \rightarrow [0, 1]$ to denote this, $T(s, a, s') = p(s' \mid s,a)$ is the probability of reaching $s'$
 given $s$ and $a$. For $\forall s \in \mathcal S$ and $\forall a \in \mathcal A$, $\sum_{s'\in S}T(s, a, s') = 1$. 
 
 \mydefination{Reward} $r:\mathcal S \times \mathcal A \rightarrow \mathbb R$, $r(s,a)$ depends on current state and action. And the reward
@@ -55,7 +55,7 @@ may also be stochastic, given state and action, the reward has probability $p(r 
 
 This can build a Markov Decision Process, $(\mathcal S, \mathcal A, \mathcal T, r)$ from the \mydefination{Trajectory} 
 $\tau = (s_0, a_0, r_0, s_1, a_1, r_1, s_2, a_2, r_2, \ldots)$, which has probability of:
-\[ P(\tau) = \pi(a_0\mid s_0) \cdot P(s_1 \mid s_0, a_0) \cdot \pi(a_1\mid s_1) \cdot P(s_2 \mid s_1, a_1) \cdots \] 
+\[ p(\tau) = \pi(a_0\mid s_0) \cdot p(s_1 \mid s_0, a_0) \cdot \pi(a_1\mid s_1) \cdot p(s_2 \mid s_1, a_1) \cdots \] 
 
 We then define \mydefination{Return} as the total reward $R(\tau) = \sum_t r_t$, 
 the goal of reinforcement learning is to find a trajectory that has the largest return. The trajectory might be infinite, so in order for a 
@@ -82,9 +82,9 @@ we get:
     \begin{array}{lll}
     V^{\pi}(s_0) &=& \mathbb E_{a_t \sim \pi(s_t)}[r(s_0, a_0) + \gamma R(\tau')] \\
                  &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_t \sim \pi(s_t)}[R(\tau')] \\
-                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)}[\mathbb E_{a_t \sim \pi(s_t)}[R(\tau') \mid s_1, a_0]]\right] \\ 
-                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)}[V^{\pi}(s_1)]\right] \\
-                 &=& \mathbb E_{a \sim \pi(s)}\left[ r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim P(s_1 \mid a_0, s_0)} [V^{\pi}(s_1)] \right]
+                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim p(s_1 \mid a_0, s_0)}[\mathbb E_{a_t \sim \pi(s_t)}[R(\tau') \mid s_1, a_0]]\right] \\ 
+                 &=& \mathbb E_{a_0 \sim \pi(s_0)}[r(s_0, a_0)] + \gamma \mathbb E_{a_0 \sim \pi(s_0)}\left[\mathbb E_{s_1 \sim p(s_1 \mid a_0, s_0)}[V^{\pi}(s_1)]\right] \\
+                 &=& \mathbb E_{a \sim \pi(s)}\left[ r(s_0, a_0) + \gamma \mathbb E_{s_1 \sim p(s_1 \mid a_0, s_0)} [V^{\pi}(s_1)] \right]
     \end{array}
 \end{equation}
 before we put $s_1$ to the right as the condition, it is stochastic, inside the $E_{s_1 \sim p(s_1 \mid s_0, a_0)}$ scope it is deterministic, 
@@ -92,7 +92,7 @@ then we can get $V^{\pi}(s_1)$, as it needs the state to be deterministic.
 
 The discrete formular is (get rid of the notation of time) so called \mydefination{Bellman Equation}:
 \begin{equation} \label{eq:bellman_equation}
-    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\left[r(s,a) + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s')\right], \forall s \in S
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\left[r(s,a) + \gamma \sum_{s'}p(s' \mid s, a)V^{\pi}(s')\right], \forall s \in S
 \end{equation}
 
 And if we write $r(s, a)$ as $\sum_r p(r \mid s, a) r$, then 
@@ -106,12 +106,12 @@ combined we get
 
 If the reward depend solely on the next state $s'$, then
 \begin{equation}
-    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s' \in \mathcal S}P(s' \mid s, a)\left[r(s') + \gamma V^{\pi}(s')\right]
+    V^{\pi}(s) = \sum_{a \in \mathcal A}\pi(a\mid s)\sum_{s' \in \mathcal S}p(s' \mid s, a)\left[r(s') + \gamma V^{\pi}(s')\right]
 \end{equation}
 
 Let 
-\[ r^{\pi}(s) = \sum_{a \in \mathcal A} \sum_r p(r \mid s, a) r \] 
-\[ p^{\pi}(s' \mid s) = \sum_{a \in \mathcal A} p(s' \mid s, a) \] 
+\[ r^{\pi}(s) = \sum_{a \in \mathcal A} \pi(a \mid s) \sum_r p(r \mid s, a) r \] 
+\[ p^{\pi}(s' \mid s) = \sum_{a \in \mathcal A} \pi(a \mid s) p(s' \mid s, a) \] 
 rewirte \ref{eq:bellman_equation} into the vector form:
 \begin{equation}
     V^{\pi} = r^{\pi} + \gamma P^{\pi} V^{\pi}
@@ -121,16 +121,32 @@ $P^{\pi} \in \mathbb R^{n \times n}$ with $P^{\pi}_{ij} = p^{\pi}(s_j \mid s_i)$
 
 \section{Solving Value Function}
 Next, we need to solve the value function, first way is closed-form solution:
-\[ V^{\pi} = \left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \]
+\[ V^{\pi} = \left ( I - \gamma p^{\pi} \right )^{-1} r^{\pi} \]
 
-Some properties: $I - \gamma P^{\pi}$ is invertible, $\left ( I - \gamma P^{\pi} \right )^{-1} \geq I$ which means every element of this inverse is nonnegative.
-For every vector $r \geq 0$, it holds that $\left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma P^{\pi} \right )^{-1} r_1^{\pi} \geq
-\left ( I - \gamma P^{\pi} \right )^{-1} r_2^{\pi}$
+Some properties: $I - \gamma p^{\pi}$ is invertible, $\left ( I - \gamma p^{\pi} \right )^{-1} \geq I$ which means every element of this inverse is nonnegative.
+For every vector $r \geq 0$, it holds that $\left ( I - \gamma p^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma p^{\pi} \right )^{-1} r_1^{\pi} \geq
+\left ( I - \gamma p^{\pi} \right )^{-1} r_2^{\pi}$
 
 However, this method need to calculate the inverse of the matrix, that need some numerical algorithms. We can 
 use a iterative solution:
 \[ V_{k+1} = r^{\pi} + \gamma P^{\pi}V_k \]
 as $k \rightarrow \infty$, $V_k \rightarrow V^{\pi} = \left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi}$.
+
+\begin{proof}
+    Define the error as $\delta_k = V_k - V^{\pi}$, substitute $V_{k+1} = \delta_{k+1} + V^{\pi}$ and $V_k = \delta_k + V^{\pi}$ into the equation:
+    \[ \delta_{k+1} + V^{\pi} = r^{\pi} + \gamma P^{\pi}(\delta_k + V^{\pi}) \]
+    Rearrange it:
+    \[ 
+    \begin{array}{lll}
+        \delta_{k+1} &=& r^{\pi} + \gamma P^{\pi}V^{\pi} + \gamma P^{\pi}\delta_k - V^{\pi} \\
+        &=& \gamma P^{\pi}V^{\pi} + r^{\pi} + \gamma P^{\pi}\delta_k - V^{\pi} \\
+        &=& \gamma P^{\pi}\delta_k
+    \end{array}
+    \]
+    As a result, $\delta_{k+1} = \gamma P^{\pi} \delta_k = (\gamma P^{\pi})^2 \delta_{k-1} = \cdots = (\gamma P^{\pi})^{k+1} \delta_0$.
+    Since every entry of $P^{\pi}$ is nonnegative and no greater than 1, and $\gamma < 1$, we have $\|(\gamma P^{\pi})^{k+1}\| \rightarrow 0$ as $k \rightarrow \infty$,
+    and the error $\|\delta_k\| \rightarrow 0$ as $k \rightarrow \infty$.
+\end{proof}
 
 \section{Action Value Function}
 Similarly to value funtion, \mydefination{Action Value Function} is the value of an action at state s, 
@@ -155,8 +171,8 @@ The action value function is given as:
 Then the bellman equation of action value is:
 \begin{equation} \label{eq:bellman_equation_action}
     \begin{array}{lll}
-    Q^{\pi}(s, a) &=& r(s, a) + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s') \\
-                  &=& r(s, a) + \gamma \sum_{s'}P(s' \mid s, a)\sum_{a' \in \mathcal A}\pi(a' \mid s')Q^{\pi}(s', a')
+    Q^{\pi}(s, a) &=& r(s, a) + \gamma \sum_{s'}p(s' \mid s, a)V^{\pi}(s') \\
+                  &=& r(s, a) + \gamma \sum_{s'}p(s' \mid s, a)\sum_{a' \in \mathcal A}\pi(a' \mid s')Q^{\pi}(s', a')
     \end{array}
 \end{equation} 
 Note that we can always write $r(s, a)$ as $\sum_r p(r \mid s, a) r$ if it is stochastic, and it follows the same notation
@@ -164,19 +180,71 @@ in the book \textit{Math of Reinforcement Learning}.
 
 Rewrite \ref{eq:bellman_equation_action} into vector form:
 \begin{equation}
-    Q^{\pi} = \tilde r^{\pi} + \gamma P^{\pi} \Pi^{\pi} Q^{\pi}
+    Q^{\pi} = \tilde r + \gamma P \Pi Q^{\pi}
 \end{equation}
-where $\tilde r^{\pi}_{(s,a)} = \sum_r p(r \mid s, a)r$, 
-$P^{\pi}_{(s, a), s'} = p(s' \mid s, a)$, $\Pi_{s', (s', a')} = \pi(a' \mid s')$.
+where $\tilde r_{(s,a)} = \sum_r p(r \mid s, a)r$, 
+$P_{(s, a), s'} = p(s' \mid s, a)$, $\Pi_{s', (s', a')} = \pi(a' \mid s')$.
 
 \section{Bellman Optimality Equation}
-\mydefination{Bellman Optimality Equation} is given by:
-\begin{equation}
+\begin{definition}[Optimal Policy]
+    If $V^{\pi_1}(s) \geq V^{\pi_2}(s), \forall s \in \mathcal S$, than $\pi_1$ is better than $\pi_2$, if $\pi_1$ is better than all other policies, 
+it is called \mydefination{Optimal Policy} $\pi^*$.
+\end{definition}
+
+\mydefination{Bellman Optimality Equation} (BOE) is given by:
+\begin{equation} \label{eq:bellman_optimality_equation}
     \begin{array}{lll}
-    V(s) &=& \max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) \left [ \sum_r p(r \mid s, a) r + \gamma \sum_{s'}P(s' \mid s, a)V^{\pi}(s') \right ] \\
+    V(s) &=& \max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) \big ( \sum_r p(r \mid s, a) r + \gamma \sum_{s'}p(s' \mid s, a)V(s') \big ) \\
          &=& \max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) Q(s, a)
     \end{array}
 \end{equation}
+
+There are two unknowns in the equation, $V(s)$ and $\pi(a \mid s)$, we can first consider the right hand side, to compute the $\pi(a \mid s)$.
+\begin{example}
+    Consider $\sum_{1}^{3} c_i q_i$, where $c_1 + c_2 + c_3 = 1$ and they are all greater than 0, without loss of generality, we can assume $q_3 \geq q_1, q_2$, 
+    then the maximum is achieved when $c_3 = 1, c_1 = 0, c_2 = 0$. This is beacuse:
+    \[ q_3 = (c_1 + c_2 + c_3)q_3 = c_1 q_3 + c_2 q_3 + c_3 q_3 \geq c_1 q_1 + c_2 q_2 + c_3 q_3 \]
+\end{example}
+
+Inspired by the example, since $\sum_a \pi(a \mid s) = 1$, we have:
+\[ \sum_{a \in \mathcal A}\pi(a \mid s)q(s, a) \leq \sum_{a \in \mathcal A}\pi(a \mid s)\max_{a \in \mathcal A} q(s, a) = \max_{a \in \mathcal A} q(s, a) \]
+where the equality is achieved when
+\[
+\pi(a \mid s) = \left \{ 
+\begin{array}{l}
+    1, \quad a = a^*, \\
+    0, \quad a \neq a^*.
+\end{array} \right .
+\]
+here $a^* = \arg\max_{a \in \mathcal A} q(s, a)$.
+
+Then the matrix form of BOE is:
+\[ V = \max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V) = f(V) \]
+the $r^{\pi}$ and $P^{\pi}$ are the same before in normal Bellman equation.
+
+In order to solve this nonlinear equation, we first need to introduce \mydefination{Contraction Mapping} theorem or Fixed Point theorem:
+\begin{definition}[Contraction Mapping]
+    Consider function $f(x)$, where $x \in \mathbb R^d$ and $f:\mathbb R^d \rightarrow \mathbb R^d$. A point $x^*$ is called a fixed point if 
+    $f(x^*) = x^*$, and the function is a contraction mapping if there exists $\gamma \in (0, 1)$ such that:
+    \[ \| f(x_1) - f(x_2) \| \leq \gamma \| x_1 - x_2 \|, \forall x_1, x_2 \in \mathbb R^d \] 
+\end{definition}
+
+The relation between a fixed point and the contraction property is characterized by:
+\begin{theorem}[Banach's Fixed Point Theorem]
+    For any equation that has the form $x = f(x)$ where $x$ and $f(x)$ are real vectors, if $f$ is a contraction mapping, than:
+    \begin{enumerate}
+        \item Existence: There exists a fixed point $x^*$ such that $f(x^*) = x^*$.
+        \item Uniqueness: There exists a unique fixed point $x^*$ such that $f(x^*) = x^*$.
+        \item Algorithm: For any initial point $x_0$, the sequence $x_{k+1} = f(x_k)$ converges to the fixed point $x^*$.
+        Moreover, the convergence rate is exponentially fast.
+    \end{enumerate}
+\end{theorem}
+
+The proof of the theorem can be found in the book, it is based one Cauthy sequence. Then we need to show the right hand side of the BOE is a contraction mapping:
+
+
+
+
 
 \chapter{From LQR to RL}
 
