@@ -64,6 +64,11 @@ the robot is encouraged to explore, for small one to take a short trajetory to g
 
 Markov system only depend on current state and action, not the history one (but we can always augment the system).
 
+\begin{remark}
+    In this book, the reward to a state that is not forbidden and is not a boundary is set to 0. There are five actions: up, right, down, left, and stay, 
+    with $a_1, \cdots, a_5$.
+\end{remark}
+
 \section{Value Function}
 \mydefination{Value Function} is the value of a state, from that state, the expected sum reward (return). 
 
@@ -110,8 +115,12 @@ If the reward depend solely on the next state $s'$, then
 \end{equation}
 
 Let 
-\[ r^{\pi}(s) = \sum_{a \in \mathcal A} \pi(a \mid s) \sum_r p(r \mid s, a) r \] 
-\[ p^{\pi}(s' \mid s) = \sum_{a \in \mathcal A} \pi(a \mid s) p(s' \mid s, a) \] 
+\begin{equation} \label{eq:bellman_equation_vector}
+    \begin{array}{rll}
+        r^{\pi}(s) &=& \sum_{a \in \mathcal A} \pi(a \mid s) \sum_r p(r \mid s, a) r \\
+        p^{\pi}(s' \mid s) &=& \sum_{a \in \mathcal A} \pi(a \mid s) p(s' \mid s, a)
+    \end{array}
+\end{equation}
 rewirte \ref{eq:bellman_equation} into the vector form:
 \begin{equation}
     V^{\pi} = r^{\pi} + \gamma P^{\pi} V^{\pi}
@@ -119,13 +128,13 @@ rewirte \ref{eq:bellman_equation} into the vector form:
 where $V^{\pi} = [V^{\pi}(s_1), \ldots, V^{\pi}(s_n)]^{\top} \in \mathbb R^n$, $r^{\pi} = [r^{\pi}(s_1), \ldots, r^{\pi}(s_n)]^{\top} \in \mathbb R^n$, and 
 $P^{\pi} \in \mathbb R^{n \times n}$ with $P^{\pi}_{ij} = p^{\pi}(s_j \mid s_i)$.
 
-\section{Solving Value Function}
+\section{Solving Value Function} \label{sec:solving_value_function}
 Next, we need to solve the value function, first way is closed-form solution:
-\[ V^{\pi} = \left ( I - \gamma p^{\pi} \right )^{-1} r^{\pi} \]
+\[ V^{\pi} = \left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \]
 
-Some properties: $I - \gamma p^{\pi}$ is invertible, $\left ( I - \gamma p^{\pi} \right )^{-1} \geq I$ which means every element of this inverse is nonnegative.
-For every vector $r \geq 0$, it holds that $\left ( I - \gamma p^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma p^{\pi} \right )^{-1} r_1^{\pi} \geq
-\left ( I - \gamma p^{\pi} \right )^{-1} r_2^{\pi}$
+Some properties: $I - \gamma P^{\pi}$ is invertible, $\left ( I - \gamma P^{\pi} \right )^{-1} \geq I$ which means every element of this inverse is nonnegative.
+For every vector $r \geq 0$, it holds that $\left ( I - \gamma P^{\pi} \right )^{-1} r^{\pi} \geq r \geq 0$, so if $r_1 \geq r_2$, $\left ( I - \gamma P^{\pi} \right )^{-1} r_1^{\pi} \geq
+\left ( I - \gamma P^{\pi} \right )^{-1} r_2^{\pi}$
 
 However, this method need to calculate the inverse of the matrix, that need some numerical algorithms. We can 
 use a iterative solution:
@@ -207,7 +216,7 @@ There are two unknowns in the equation, $V(s)$ and $\pi(a \mid s)$, we can first
 \end{example}
 
 Inspired by the example, since $\sum_a \pi(a \mid s) = 1$, we have:
-\[ \sum_{a \in \mathcal A}\pi(a \mid s)q(s, a) \leq \sum_{a \in \mathcal A}\pi(a \mid s)\max_{a \in \mathcal A} q(s, a) = \max_{a \in \mathcal A} q(s, a) \]
+\[ \sum_{a \in \mathcal A}\pi(a \mid s) Q(s, a) \leq \sum_{a \in \mathcal A}\pi(a \mid s)\max_{a \in \mathcal A} Q(s, a) = \max_{a \in \mathcal A} Q(s, a) \]
 where the equality is achieved when
 \[
 \pi(a \mid s) = \left \{ 
@@ -216,11 +225,11 @@ where the equality is achieved when
     0, \quad a \neq a^*.
 \end{array} \right .
 \]
-here $a^* = \arg\max_{a \in \mathcal A} q(s, a)$.
+here $a^* = \arg\max_{a \in \mathcal A} Q(s, a)$.
 
 Then the matrix form of BOE is:
 \[ V = \max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V) = f(V) \]
-the $r^{\pi}$ and $P^{\pi}$ are the same before in normal Bellman equation.
+the $r^{\pi}$ and $P^{\pi}$ are the same before in normal Bellman equation \ref{eq:bellman_equation_vector}.
 
 In order to solve this nonlinear equation, we first need to introduce \mydefination{Contraction Mapping} theorem or Fixed Point theorem:
 \begin{definition}[Contraction Mapping]
@@ -240,10 +249,218 @@ The relation between a fixed point and the contraction property is characterized
     \end{enumerate}
 \end{theorem}
 
-The proof of the theorem can be found in the book, it is based one Cauthy sequence. Then we need to show the right hand side of the BOE is a contraction mapping:
+The proof of the theorem can be found in the book, it is based on Cauthy sequence. Then we need to show the right hand side of the BOE is a contraction mapping:
+\begin{theorem}[Contraction Property of right-hand side of BOE]
+    For any $V_1, V_2 \in \mathbb R^{|\mathcal S|}$, it holds that:
+    \[ \| f(V_1) - f(V_2) \|_{\infty} \leq \gamma \| V_1 - V_2 \|_{\infty} \]
+    where $\gamma \in (0, 1)$ is the discount factor, $\| \cdot \|_{\infty}$ is the maximum norm, which is the
+maximum absolute value of the elements of a vector.
+\end{theorem}
+
+\begin{proof}
+    \begin{align*}
+        f(V_1) = \max_{\pi} (r^{\pi} + \gamma P^{\pi}V_1) = r^{\pi^*_1} + \gamma P^{\pi^*_1}V_1 \geq r^{\pi^*_2} + \gamma P^{\pi^*_2}V_1 \\
+        f(V_2) = \max_{\pi} (r^{\pi} + \gamma P^{\pi}V_2) = r^{\pi^*_2} + \gamma P^{\pi^*_2}V_2 \geq r^{\pi^*_1} + \gamma P^{\pi^*_1}V_2
+    \end{align*}
+    where $\geq$ is elementwise comparison, as a result:
+    \[ 
+    \begin{array}{lll}
+        f(V_1) - f(V_2) &=& (r^{\pi^*_1} - r^{\pi^*_2}) + \gamma P^{\pi^*_1}V_1 - \gamma P^{\pi^*_2}V_2 \\
+                        &\leq& (r^{\pi^*_1} - r^{\pi^*_1}) + \gamma P^{\pi^*_1}V_1 - \gamma P^{\pi^*_1}V_2 \\
+                        &=& \gamma P^{\pi^*_1}(V_1 - V_2) \\
+    \end{array}    
+    \]
+    similarly we can get $f(V_2) - f(V_1) \leq \gamma P^{\pi^*_2}(V_2 - V_1)$, so we have:
+    \[ \gamma P^{\pi^*_2}(V_1 - V_2) \leq f(V_1) - f(V_2) \leq \gamma P^{\pi^*_1}(V_1 - V_2) \]
+    define
+    \[ z = \max \big \{ | \gamma P^{\pi^*_1}(V_1 - V_2) |, | \gamma P^{\pi^*_2}(V_1 - V_2) | \big \} \in \mathbb R^{|\mathcal S|} \]
+    all the operations are elementwise, $z \geq 0$, then we have:
+    \[ -z \leq \gamma P^{\pi^*_2}(V_1 - V_2) \leq f(V_1) - f(V_2) \leq \gamma P^{\pi^*_1}(V_1 - V_2) \leq z \]
+    which imlies:
+    \[ |f(V_1) - f(V_2)| \leq z \]
+    it then follows that:
+    \begin{equation} \label{eq:BOE_proof}
+        \| f(V_1) - f(V_2) \|_{\infty} \leq \| z \|_{\infty}
+    \end{equation}
+    suppose $z_i, p_i^T, q_i^T$ are $i$th entry of $z, P^{\pi^*_1}, P^{\pi^*_2}$, then:
+    \[ z_i = \max \big \{ |\gamma p_i^T(V_1 - V_2)|, |\gamma q_i^T(V_1 - V_2)| \big \} \]
+    since $p_i$ sums up to 1 and nonnegative, we have:
+    \[ |p_i^T (V_1 - V_2) | \leq p_i^T |V_1 - V_2| \leq \| V_1 - V_2 \|_{\infty} \]
+    similarly we have $|q_i^T (V_1 - V_2) | \leq \| V_1 - V_2 \|_{\infty}$, therefore $z_i \leq \gamma \| V_1 - V_2 \|_{\infty}$, and hence
+    \[ \| z \|_{\infty} = \max_i |z_i| \leq \gamma \| V_1 - V_2 \|_{\infty} \]
+    Substitute it back to \ref{eq:BOE_proof}, we have:
+    \[ \| f(V_1) - f(V_2) \|_{\infty} \leq \gamma \| V_1 - V_2 \|_{\infty} \]
+\end{proof}
+
+Then we can use this to solve an optimal policy from the BOE. Since $V^* = \max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V^*)$, so it is clearly a 
+fixed point.
+
+\begin{theorem}[Existence, Uniqueness and Algorithm of Optimal Policy]
+    The optimal policy $V^*$ exists and is unique, and the sequence $V_{k+1} = f(V_k)$ converges to the optimal policy $V^*$ exponentially fast
+    given any initial guess $V_0$ with the iteration algorithm:
+    \[ V_{k+1} = f(V_k) = \max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V_k) \]
+\end{theorem}
+
+The proof follows the proof of the contraction mapping theorem, and the iteration algorithm is called \mydefination{Value Iteration}.
+Once we have the optimal value function $V^*$, we can get the optimal policy $\pi^*$ by:
+\begin{equation}
+    \pi^* = \arg\max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V^*)
+\end{equation}
+substitute this into the BOE yields $V^* = r^{\pi^*} + \gamma P^{\pi^*}V^*$, which is the optimal value function.
+
+\begin{theorem}[Optimality of Value Function and Policy]
+    The solution $V^*$ and the policy $\pi^*$ are optimal, i.e., for any other policy $\pi \in \Pi$, it holds that:
+    \[ V^* = V^{\pi^*} \geq V^{\pi} \] 
+\end{theorem}
+
+\begin{proof}
+    \[ V^* - V^{\pi} = r^{\pi^*} + \gamma P^{\pi^*}V^* - r^{\pi} - \gamma P^{\pi}V^{\pi} \geq 
+    r^{\pi} + \gamma P^{\pi}V^* - r^{\pi} - \gamma P^{\pi}V^{\pi} = \gamma P^{\pi} (V^* - V^{\pi}) \]
+    iteratively we have $V^* - V^{\pi} \geq \lim_{n \rightarrow \infty} (\gamma P^{\pi})^n (V^* - V^{\pi})$.
+\end{proof}
+
+\begin{theorem}[Greedy optimal policy]
+    For any $s \in \mathcal S$, the deterministic greedy policy:
+    \begin{equation} \label{eq:greedy_policy}
+        \pi(a \mid s) = \left \{ 
+        \begin{array}{l}
+            1, \quad a = a^*, \\
+            0, \quad a \neq a^*.
+        \end{array} \right .
+    \end{equation}
+    is an optimal policy, where $a^* = \arg\max_{a \in \mathcal A} Q^{*}(s, a)$, where
+    \[ Q^{*}(s, a) = \sum_{r \in \mathcal R}p(r \mid s, a)r + \gamma \sum_{s'}p(s' \mid s, a)V^{*}(s') \]
+    remember that even though $V^*$ is unique, the optimal policy may not be unique, and there always exists a greedy optimal policy.
+\end{theorem}
+
+We can talk about the impact of the reward values:
+\begin{theorem}[Optimal policy invaraince]
+    If every reward $r \in \mathcal R$ is changed by an affine transformation to $\alpha r + \beta$, where $\alpha, \beta \in \mathbb R$ and $\alpha > 0$, then
+the corresponding optimal state value $V'$ is also an affine transformation of $V^*$:
+\[ V' = \alpha V^* + \frac{\beta}{1 - \gamma} \mathbf{1} \]
+Consequently, the optimal policy derived from $V'$ is invariant to the affine transformation of the reward values.
+\end{theorem}
+
+And with the discount factor $\gamma$, the optimal policy will not take any meaningless detour.
+
+\section{Value Iteration and Policy Iteration}
+The algorithm of \mydefination{Value Iteration} is:
+\[ V_{k+1} = \max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V_k) \]
+and there are two steps in one iteration, first one is called \mydefination{Policy Update}:
+\[ \pi_{k+1} = \arg\max_{\pi \in \Pi} (r^{\pi} + \gamma P^{\pi}V_k) \]
+the second one is called \mydefination{Value Update}:
+\[ V_{k+1} = r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}}V_k \]
+
+With the elementwise form, the policy update is (if there are same actions that takes the maximum, we can choose any of them):
+\[ \pi_{k+1}(s) = \arg\max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) \big ( \sum_r p(r \mid s, a) r + \gamma \sum_{s'}p(s' \mid s, a)V_k(s') \big ) \]
+Then the value update is:
+\[ V_{k+1}(s) = \sum_{a \in \mathcal A}\pi_{k+1}(a\mid s) \big ( \sum_r p(r \mid s, a) r + \gamma \sum_{s'}p(s' \mid s, a)V_k(s') \big ) \]
+We can use the greedy deterministic policy, which is then:
+\[ V_{k+1}(s) = \max_a Q_k(s, a) \]
+
+We should know that $V_k$ is not a state value though it converges to the optimal state value, it is not ensured to satisfy the Bellman equation. So the 
+$Q_k$ is also not a action value, they are all intermediate values.
+
+The algorithm of \mydefination{Policy Iteration} has also two steps, first one is called \mydefination{Policy Evaluation}:
+\[ V^{\pi_k} = r^{\pi_k} + \gamma P^{\pi_k}V^{\pi_k} \]
+second one is called \mydefination{Policy Improvement}:
+\[ \pi_{k+1} = \arg\max_{\pi \in \Pi} (r^{\pi_k} + \gamma P^{\pi_k}V^{\pi_k}) \]
+
+Here comes the first question, how to solve the policy evaluation? We can use the iterative method introduced in \ref{sec:solving_value_function}, and this 
+results an iteration algorithm inside an iteration algorithm. We will not do infinite iteration here, so the $V^{\pi_k}$ will not be the exact solution, would 
+this cause problem? No, see the truncated policy iteration algorithm.
+
+And the second question, why $\pi_{k+1}$ is better than $\pi_{k}$?
+\begin{lemma}[Policy Improvement] \label{lemma:policy_improvement}
+    If $\pi_{k+1} = \arg\max_{\pi \in \Pi} (r^{\pi_k} + \gamma P^{\pi_k}V^{\pi_k})$, then $V^{\pi_{k+1}}(s) \geq V^{\pi_{k}}(s), \forall s \in \mathcal S$.
+\end{lemma}
+\begin{proof}
+    We know that:
+    \[ r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}}V^{\pi_{k+1}} \geq r^{\pi_k} + \gamma P^{\pi_k}V^{\pi_k} \]
+    Then
+    \[
+    \begin{array}{lll}
+        V^{\pi_k} - V^{\pi_{k+1}} &=& r^{\pi_k} + \gamma P^{\pi_k}V^{\pi_k} - (r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}}V^{\pi_{k+1}}) \\
+        & \leq & r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}}V^{\pi_k} - (r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}}V^{\pi_{k+1}}) \\
+        & \leq & \gamma P^{\pi_{k+1}}(V^{\pi_k} - V^{\pi_{k+1}})
+    \end{array}
+    \]
+    again iteratively we have:
+    \[ V^{\pi_k} - V^{\pi_{k+1}} \leq \lim_{n \rightarrow \infty} (\gamma P^{\pi_{k+1}})^n (V^{\pi_k} - V^{\pi_{k+1}}) = 0 \]
+\end{proof}
+
+\begin{theorem}[Convergence of policy iteration]
+    The state value sequence $\{ V^{\pi_k} \}_{k=0}^{\infty}$ converges to the optimal state value $V^*$, and the policy sequence $\{ \pi_k \}_{k=0}^{\infty}$ 
+    converges to the optimal policy $\pi^*$ in policy iteration algorithm.
+\end{theorem}
+\begin{proof}
+    We introduce another sequence $\{ V_{k} \}_{k=0}^{\infty}$ generated by:
+    \[ V_{k+1} = f(V_k) = \max_{\pi} (r^{\pi} + \gamma P^{\pi} V_k) \]
+    which is exactly the value iteration algorithm, and we know that $V_k \rightarrow V^*$ as $k \rightarrow \infty$.
+    For $k = 0$, we can always find a $V_0$ such that $V_0 \leq V^{\pi_0}$, then we use induction: for $k \geq 0$, if $V_k \leq V^{\pi_k}$, then for $k+1$:
+    \begin{align*}
+        V^{\pi_{k+1}} - V_{k+1} 
+        &= \left(r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}} V^{\pi_{k+1}}\right) - \max_{\pi} \left(r^{\pi} + \gamma P^{\pi} V_k\right) \\
+        &\geq \left(r^{\pi_{k+1}} + \gamma P^{\pi_{k+1}} V_k\right) - \max_{\pi} \left(r^{\pi} + \gamma P^{\pi} V_k\right) \\
+        &\quad \text{(because } V^{\pi_{k+1}} \geq V_k \text{ by Lemma \ref{lemma:policy_improvement} and } P^{\pi_{k+1}} \geq 0 \text{)} \\
+        &= \left(r^{\pi_k'} + \gamma P^{\pi_k'} V_k\right) - \left(r^{\pi_k'} + \gamma P^{\pi_k'} V_k\right) \\
+        &\quad \text{(suppose } \pi_k' = \arg\max_{\pi} \left(r^{\pi} + \gamma P^{\pi} V_k\right)) \\
+        &\geq \left(r^{\pi_k'} + \gamma P^{\pi_k'} V_k\right) - \left(r^{\pi_k'} + \gamma P^{\pi_k'} V_k\right) \\
+        &\quad \text{(because } \pi_{k+1} = \arg\max_{\pi} \left(r^{\pi} + \gamma P^{\pi} V_k\right)) \\
+        &= \gamma P^{\pi_k'} \left(V_{k+1} - V_k\right) \geq 0 \\
+    \end{align*}
+    Since $V_k$ converges to $V^*$, $V^{\pi_k}$ is also converges to $V^*$.
+\end{proof}
+
+Then the elementwise form of the policy iteration algorithm is, policy evaluation:
+\[ V^{\pi_k}_{(j+1)}(s) = \sum_{a \in \mathcal A}\pi_{k+1}(a\mid s) \big ( \sum_r p(r \mid s, a) r + \gamma \sum_{s'}p(s' \mid s, a)V^{\pi_k}_{(j)}(s') \big ) \]
+and policy improvement:
+\[ \pi_{k+1}(s) = \arg\max_{\pi(s) \in \Pi(s)} \sum_{a \in \mathcal A}\pi(a\mid s) \big ( \sum_r p(r \mid s, a) r + \gamma \sum_{s'}p(s' \mid s, a)V^{\pi_k}(s') \big ) \]
+
+Next we introduce \mydefination{Truncated Policy Iteration} algorithm, which is a combination of value iteration and policy iteration. We will
+see that the value iteration and policy iteration algorithms are two special cases of the truncated policy iteration algorithm.
+
+If we start from $V_0^{\pi_1} = V_0$, we get:
+\[
+\begin{array}{rll}
+    && V^{(0)}_{\pi_1} = V_0 \\
+    \text{value iteration} & \leftarrow V_1 \leftarrow & V_{(1)}^{\pi_1} = r^{\pi_1} + \gamma P^{\pi_1} V_{(0)}^{\pi_1} \\
+    && V_{(2)}^{\pi_1} = r^{\pi_1} + \gamma P^{\pi_1} V_{(1)}^{\pi_1} \\
+    && \vdots \\
+    \text{truncated policy iteration} & \leftarrow \bar{V}_1 \leftarrow & V_{(j)}^{\pi_1} = r^{\pi_1} + \gamma P^{\pi_1} V_{(j-1)}^{\pi_1} \\
+    && \vdots \\
+    \text{policy iteration} & \leftarrow V^{\pi_1} \leftarrow & V_{(\infty)}^{\pi_1} = r^{\pi_1} + \gamma P^{\pi_1} V_{(\infty)}^{\pi_1}
+\end{array}
+\]
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.60\textwidth]{image/3_iteration.png}
+    \caption{3 iteration methods}
+    \label{fig:3_iteration}
+\end{figure}
+
+\begin{proposition}[Value Improvement]
+    In the policy evaluation step if the initial guess is selected as $V^{\pi_k}_{(0)} = V^{\pi_{k-1}}$, then it holds that:
+    \[ V^{\pi_k}_{(j+1)} \geq V^{\pi_k}_{(j)} \]
+\end{proposition}
+
+\begin{proof}
+    \[ V^{\pi_k}_{(j+1)} - V^{\pi_k}_{(j)} = \gamma P^{\pi_k} (V^{\pi_k}_{(j)} - V^{\pi_k}_{(j-1)}) = \cdots = \gamma^j P^{\pi_k} (V^{\pi_k}_{(1)} - V^{\pi_k}_{(0)}) \]
+    we have
+    \[ V^{\pi_k}_{(1)} = r^{\pi_k} + \gamma P^{\pi_k} V^{\pi_{k-1}} \geq r^{\pi_{k-1}} + \gamma P^{\pi_{k-1}} V^{\pi_{k-1}} = V^{\pi_{k-1}} = V^{\pi_{k}}_{(0)} \]
+    where the inequality is due to $\pi_k = \arg\max_{\pi} (r^{\pi} + \gamma P^{\pi} V^{\pi_{k-1}})$, substitute $V^{\pi_{k}}_{(1)} \geq V^{\pi_{k}}_{(0)}$ into 
+    the first equation, we have $V^{\pi_k}_{(j+1)} \geq V^{\pi_k}_{(j)}$.
+\end{proof}
+
+But we have to note that this is based on the assumption that the initial guess is $V^{\pi_k}_{(0)} = V^{\pi_{k-1}}$, 
+and $V^{\pi_{k-1}}$ is not always available, like in the truncated policy iteration algorithm, we do not do the iteration until convergence, 
+but only do a few steps, so the initial value is approximation. And in Deep Reinforcement Learning, we do not have the exact value function, 
+even if we have it may not be tranferable or meaningful.
 
 
 
+\section{Monte Carlo Method}
 
 
 \chapter{From LQR to RL}
