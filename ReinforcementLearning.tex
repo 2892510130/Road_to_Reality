@@ -461,6 +461,194 @@ even if we have it may not be tranferable or meaningful.
 
 
 \section{Monte Carlo Method}
+If we sample from a independent and identically distributed (i.i.d.) distribution, we can use the Monte Carlo method to do mean estimate, as value function 
+ans action value function are all mean estimates.
+
+In the policy iteration, the action value lies in the core of these two steps, we first use Bellman equation to compute the value function, then use it 
+to compute action value, and then update the policy. If we do not have a model, than the definition of action value is:
+\[ Q^{\pi_k}(s, a) = \mathbb E[G_t | S_t = s, A_t = a] = \mathbb E[R_{t+1} + \gamma R_{t+2} + \gamma^2 R_{t+3} + \dots | S_t = s, A_t = a] \]
+we use $R$ to denote the stochastic reward, and $G_t$ is the return at time $t$.
+
+If we run the policy for $n$ episodes than we get:
+\begin{equation}
+    Q^{\pi_k}(s, a) = \mathbb E[G_t | S_t = s, A_t = a] \approx \frac{1}{n} \sum_{i=1}^{n} G^{\pi_k}_{(i)}(s, a)
+\end{equation}
+instead of calculation of value function, we directly get action value from samples, this is the simplest Monte Carlo method (we call it MC Basic).
+
+In the example of the book, we can see that if the length of the episodes are too short, it will get zero action value, because it can not get to 
+the target. This is caused by the \mydefination{Sparse Reward}.
+
+We next show how to efficiently use the samples. Every time a state-action pair appears in an episodes, it is called a \textit{visit}.
+Given an episodes:
+\[ s_1 \xrightarrow{a_2} s_2 \xrightarrow{a_4} s_1 \xrightarrow{a_2} s_2 \xrightarrow{a_3} s_5 \xrightarrow{a_1} \dots \]
+
+\begin{enumerate}
+    \item Initial visit, only the first pair is evaluated, like in the MC Basic, which is not efficient.
+    \item First-visit, only use the samples to estimate the action value of the first visit.
+    \item Every visit, use the samples to estimate the action value of every visit, which is more efficient, but may cause bias (because they are subsequence
+    , there are corrleation).
+\end{enumerate}
+
+Then we consider how to efficiently update the policy.
+\begin{enumerate}
+    \item In the policy evaluation step, to collect all the episodes starting from the same state-action pair and then approximate the action value using the
+average return of these episodes, which is in MC Basic. The drawback of this strategy is that the agent must wait until all the episodes have
+been collected before the estimate can be updated.
+    \item Use the return of a single episode to approximate the corresponding action value. In this way, we can
+immediately obtain a rough estimate when we receive an episode. Then, the policy can be improved in an episode-by-episode fashion. In fact, this strategy
+falls into the scope of \mydefination{Generalized Policy Iteration} introduced in the last chapter,we can still update the policy even if the value estimate is not sufficiently accurate.
+\end{enumerate}
+
+So the new algorithm is called \mydefination{MC Exploring Starts}, based on the exploring starts condition, which means that the agent can start from any state 
+and take any action (MC Basic assume this too).
+
+\begin{algorithm}[H]
+\caption{MC Exploring Starts (efficient variant of MC Basic)}
+\KwIn{Initial policy $\pi_0(a|s)$, $Q(s,a)$, $\text{Returns}(s,a)=0$, $\text{Num}(s,a)=0, \forall (s,a)$}
+
+\ForEach{episode}{
+    \textbf{Episode generation:} Select $(s_0,a_0)$ (exploring-starts), then generate $s_0,a_0,r_1,\dots,s_{T-1},a_{T-1},r_T$ following $\pi$ \\
+    $g \gets 0$ \\
+    \For{$t=T-1, T-2, \dots, 0$}{
+        $g \gets \gamma g + r_{t+1}$ \\
+        $\text{Returns}(s_t,a_t) \gets \text{Returns}(s_t,a_t) + g$ \\
+        $\text{Num}(s_t,a_t) \gets \text{Num}(s_t,a_t) + 1$ \\
+        $Q(s_t,a_t) \gets \frac{\text{Returns}(s_t,a_t)}{\text{Num}(s_t,a_t)}$ \\
+        $\pi(a|s_t) \gets \begin{cases}
+        1 & \text{if } a = \arg\max_a Q(s_t,a), \\
+        0 & \text{otherwise}
+        \end{cases}$
+    }
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
+
+We can see that the algorithm starts from the last state of the episode, and then update the action value and policy in a \textbf{reverse order}.
+
+However, the exploring starts condition is not always satisfied, for example in the real world involving physical interactions, we need to remove this 
+condition. A policy is \textbf{soft} if it has a positive probability of taking any action at any state, with a soft policy, a single
+episode that is sufficiently long can visit every state-action pair many times. Thus we do not need the exploring starts condition.
+
+One type of soft policy is \mydefination{$\epsilon$-greedy Policy}:
+\begin{equation}
+    \pi(a \mid s) = \left \{ 
+    \begin{array}{l}
+        1 - \frac{\epsilon}{|\mathcal A(s)|}(|\mathcal A(s)| - 1), \text{for the greedy action}, \\
+        \frac{\epsilon}{|\mathcal A(s)|}, \text{for the other actions}.
+    \end{array} \right .
+\end{equation}
+Where $\pi \in \Pi_{\epsilon}$ is the set of all $\epsilon$-greedy policies, and $|\mathcal A(s)|$ is the number of actions available at state $s$.
+The probability of taking the greedy action is always greater than that of taking any other action. 
+
+With this we can change the policy improvement step:
+\begin{equation} \label{eq:e_greedy_policy}
+    \pi(a \mid s) = \left \{ 
+    \begin{array}{l}
+        1 - \frac{\epsilon}{|\mathcal A(s)|}(|\mathcal A(s)| - 1), \quad a = a^*, \\
+        \frac{\epsilon}{|\mathcal A(s)|}, \quad a \neq a^*.
+    \end{array} \right .
+\end{equation}
+
+So the algorithm is:
+
+\begin{algorithm}[H]
+\caption{MC $\epsilon$-greedy (a variant of MC Exploring Starts)}
+\KwIn{Initial policy $\pi_0(a|s)$, $Q(s,a)$, $\text{Returns}(s,a)=0$, $\text{Num}(s,a)=0, \forall (s,a). \epsilon \in (0, 1]$}
+
+\ForEach{episode}{
+    \textbf{Episode generation:} Select $(s_0,a_0)$, then generate $s_0,a_0,r_1,\dots,s_{T-1},a_{T-1},r_T$ following $\pi$ \\
+    $g \gets 0$ \\
+    \For{$t=T-1, T-2, \dots, 0$}{
+        $g \gets \gamma g + r_{t+1}$ \\
+        $\text{Returns}(s_t,a_t) \gets \text{Returns}(s_t,a_t) + g$ \\
+        $\text{Num}(s_t,a_t) \gets \text{Num}(s_t,a_t) + 1$ \\
+        $Q(s_t,a_t) \gets \frac{\text{Returns}(s_t,a_t)}{\text{Num}(s_t,a_t)}$ \\
+        $\pi(a|s_t) \gets \begin{cases}
+        1 - \frac{\epsilon}{|\mathcal A(s)|}(|\mathcal A(s)| - 1) & a = a^*, \\
+        \frac{\epsilon}{|\mathcal A(s)|} & a \neq a^*.
+        \end{cases}$
+    }
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
+
+The policy is optimal in $\Pi_{\epsilon}$, not in $\Pi$, so it is not guaranteed to be optimal, but it is still a good policy (if $\epsilon$ is sufficiently small).
+
+
+\section{Stochastic Approximation}
+For now, we only learned non-incremental algorithms, which may take a logn time to compute, not good for online learning.
+Suppose $\omega_{k} = \frac{1}{k-1} \sum_{i=1}^{k-1} x_i, k = 2, 3, \ldots$, then:
+\[ \omega_{k+1} = \frac{1}{k} \sum_{i=1}^{k} x_i = \frac{k-1}{k} \omega_k + \frac{1}{k} x_k \]
+this update the mean estimate incrementally. We use 
+\begin{equation}
+    \omega_{k+1} = \omega_{k} - \alpha_k (\omega_{k} - x_k)
+\end{equation}
+$\alpha_k$ may not be given, though 
+above we give it as $\frac{1}{k}$.
+
+Given a noisy observation of $g(\omega)$:
+\[ \tilde{g}(\omega, \eta) = g(\omega) + \eta \]
+where $\eta$ is a noise, we can use the stochastic approximation method \mydefination{Robbins-Monro} algorithm to update the estimate of $\omega$:
+\begin{equation}
+    \omega_{k+1} = \omega_k - \alpha_k \tilde{g}(\omega_k, \eta_k), \alpha_k > 0
+\end{equation}
+
+Why this algorithm converge?
+\begin{theorem}[Robbins-Monro theorem]
+    If
+    \begin{enumerate}
+        \item $0 \leq c_1 \leq \nabla_{\omega}g(\omega) \leq c_2 < \infty$, $\forall \omega$; So $g$ is monotonic and bounded;
+        \item $\sum_{k=1}^{\infty} \alpha_k = \infty$ and $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$; It should converge to zero, but not too fast, one 
+        common choice is $\alpha_k = \frac{1}{k}$;
+        \item $\mathbb E[\eta_k \mid \mathcal H_k] = 0$ and $\mathbb E[\eta_k^2 \mid \mathcal H_k] < \infty$;
+    \end{enumerate}
+    where $\mathcal H_k = \{ \omega_k, \omega_{k-1}, \ldots, \}$, then $\omega_k$ converges to the root of $g(\omega)$ almost surely, i.e., 
+    $\lim_{k \rightarrow \infty} \omega_k = \omega^*$, where $g(\omega^*) = 0$.
+\end{theorem}
+
+Then let $g(\omega) = \omega - \mathbb E[X], \tilde g(\omega, \eta) = \omega - x + \eta, \eta = \mathbb E[X] - x$, 
+we can use the Robbins-Monro algorithm to prove that with careful choice of $\alpha_k$, the estimate $\omega_k$ converges to the mean $\mathbb E[X]$ almost surely.
+
+\begin{theorem}[Dvoretzky's Theorem]
+    Consider a stochastic sequence:
+    \[ \Delta_{k+1} = (1 - \alpha_k) \Delta_k + \beta_k \eta_k \]
+    where $\alpha_k, \beta_k \geq 0$, then  $\Delta_k$ converges to 0 almost surely, if:
+    \begin{enumerate}
+        \item $\sum_{k=1}^{\infty} \alpha_k = \infty$ and $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$, and $\sum_{k=1}^{\infty} \beta_k^2 < \infty$ uniformly almost surely;
+        \item $\mathbb E[\eta_k \mid \mathcal H_k] = 0$ and $\mathbb E[\eta_k^2 \mid \mathcal H_k] < \infty$ almost surely.
+    \end{enumerate}
+    where $\mathcal H_k = \{ \Delta_k, \Delta_{k-1}, \ldots, \eta_{k-1}, \ldots, \alpha_{k-1}, \ldots, \beta_{k-1}, \ldots, \}$.
+    
+    In RM, $\alpha_k, \beta_k$ are deterministic, but in Dvoretzky's theorem, they can be stochastic, and is useful in cases they are function of $\Delta_k$.
+\end{theorem}
+
+
+
+\section{Appendix: Measure-Theoretic Probability Theory}
+A \mydefination{Probability Triple} is a tuple $(\Omega, \mathcal F, P)$, where:
+\begin{itemize}
+    \item $\Omega$ is a sample space, which is a set of all possible outcomes;
+    \item $\mathcal F$ is a $\sigma$-algebra, which is a collection of subsets of $\Omega$ that includes the empty set and $\Omega$, and is closed under complementation and countable unions;
+    An element in $\mathcal F$ is called an event, denoted as $A$. An elementary event refers to a single outcome in $\Omega$.
+    \item $P$ is a probability measure, which assigns a probability to each event in $\mathcal F$ such that $P(\Omega) = 1$ and $P(\emptyset) = 0$.
+\end{itemize}
+
+\begin{definition}[$\sigma$-algebra]
+    A \mydefination{$\sigma$-algebra} $\mathcal F$ on a set $\Omega$ is a collection of subsets of $\Omega$ that satisfies the following properties:
+    \begin{enumerate}
+        \item $\emptyset \in \mathcal F$ and $\Omega \in \mathcal F$;
+        \item If $A \in \mathcal F$, then $A^c = \Omega \setminus A \in \mathcal F$ (closed under complementation);
+        \item If $A_1, A_2, A_3, \ldots \in \mathcal F$, then $\bigcup_{i=1}^{\infty} A_i \in \mathcal F$ (closed under countable unions).
+    \end{enumerate}
+\end{definition}
+
+A \mydefination{Random Variable} is a measurable function $X(\omega): \Omega \rightarrow \mathbb R$ that maps outcomes in $\Omega$ to real numbers.
+Not all the mappings are random variables, the formal definition is:
+\[ A = \{ \omega \in \Omega \mid X(\omega) \leq x \} \in \mathcal F, \forall x \in \mathbb R \]
+This definition indicates that $X$ is a random variable only if $X(\omega) \leq x$ is an event in $\mathcal F$.
+
 
 
 \chapter{From LQR to RL}
