@@ -579,50 +579,149 @@ The policy is optimal in $\Pi_{\epsilon}$, not in $\Pi$, so it is not guaranteed
 
 \section{Stochastic Approximation}
 For now, we only learned non-incremental algorithms, which may take a logn time to compute, not good for online learning.
-Suppose $\omega_{k} = \frac{1}{k-1} \sum_{i=1}^{k-1} x_i, k = 2, 3, \ldots$, then:
-\[ \omega_{k+1} = \frac{1}{k} \sum_{i=1}^{k} x_i = \frac{k-1}{k} \omega_k + \frac{1}{k} x_k \]
+Suppose $w_{k} = \frac{1}{k-1} \sum_{i=1}^{k-1} x_i, k = 2, 3, \ldots$, then:
+\[ w_{k+1} = \frac{1}{k} \sum_{i=1}^{k} x_i = \frac{k-1}{k} w_k + \frac{1}{k} x_k \]
 this update the mean estimate incrementally. We use 
 \begin{equation}
-    \omega_{k+1} = \omega_{k} - \alpha_k (\omega_{k} - x_k)
+    w_{k+1} = w_{k} - \alpha_k (w_{k} - x_k)
 \end{equation}
 $\alpha_k$ may not be given, though 
 above we give it as $\frac{1}{k}$.
 
-Given a noisy observation of $g(\omega)$:
-\[ \tilde{g}(\omega, \eta) = g(\omega) + \eta \]
-where $\eta$ is a noise, we can use the stochastic approximation method \mydefination{Robbins-Monro} algorithm to update the estimate of $\omega$:
+Given a noisy observation of $g(w)$:
+\[ \tilde{g}(w, \eta) = g(w) + \eta \]
+where $\eta$ is a noise, we can use the stochastic approximation method \mydefination{Robbins-Monro} algorithm to update the estimate of $w$:
 \begin{equation}
-    \omega_{k+1} = \omega_k - \alpha_k \tilde{g}(\omega_k, \eta_k), \alpha_k > 0
+    w_{k+1} = w_k - \alpha_k \tilde{g}(w_k, \eta_k), \alpha_k > 0
 \end{equation}
 
 Why this algorithm converge?
-\begin{theorem}[Robbins-Monro theorem]
+\begin{theorem}[Robbins-Monro theorem] \label{theorem:RM}
     If
     \begin{enumerate}
-        \item $0 \leq c_1 \leq \nabla_{\omega}g(\omega) \leq c_2 < \infty$, $\forall \omega$; So $g$ is monotonic and bounded;
+        \item $0 \leq c_1 \leq \nabla_{w}g(w) \leq c_2 < \infty$, $\forall w$; So $g$ is monotonic and bounded;
         \item $\sum_{k=1}^{\infty} \alpha_k = \infty$ and $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$; It should converge to zero, but not too fast, one 
         common choice is $\alpha_k = \frac{1}{k}$;
         \item $\mathbb E[\eta_k \mid \mathcal H_k] = 0$ and $\mathbb E[\eta_k^2 \mid \mathcal H_k] < \infty$;
     \end{enumerate}
-    where $\mathcal H_k = \{ \omega_k, \omega_{k-1}, \ldots, \}$, then $\omega_k$ converges to the root of $g(\omega)$ almost surely, i.e., 
-    $\lim_{k \rightarrow \infty} \omega_k = \omega^*$, where $g(\omega^*) = 0$.
+    where $\mathcal H_k = \{ w_k, w_{k-1}, \ldots, \}$, then $w_k$ converges to the root of $g(w)$ almost surely, i.e., 
+    $\lim_{k \rightarrow \infty} w_k = w^*$, where $g(w^*) = 0$.
 \end{theorem}
 
-Then let $g(\omega) = \omega - \mathbb E[X], \tilde g(\omega, \eta) = \omega - x + \eta, \eta = \mathbb E[X] - x$, 
-we can use the Robbins-Monro algorithm to prove that with careful choice of $\alpha_k$, the estimate $\omega_k$ converges to the mean $\mathbb E[X]$ almost surely.
+Then let $g(w) = w - \mathbb E[X], \tilde g(w, \eta) = w - x + \eta, \eta = \mathbb E[X] - x$, 
+we can use the Robbins-Monro algorithm to prove that with careful choice of $\alpha_k$, the estimate $w_k$ converges to the mean $\mathbb E[X]$ almost surely.
 
 \begin{theorem}[Dvoretzky's Theorem]
     Consider a stochastic sequence:
     \[ \Delta_{k+1} = (1 - \alpha_k) \Delta_k + \beta_k \eta_k \]
     where $\alpha_k, \beta_k \geq 0$, then  $\Delta_k$ converges to 0 almost surely, if:
     \begin{enumerate}
-        \item $\sum_{k=1}^{\infty} \alpha_k = \infty$ and $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$, and $\sum_{k=1}^{\infty} \beta_k^2 < \infty$ uniformly almost surely;
+        \item $\sum_{k=1}^{\infty} \alpha_k = \infty$, $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$, and $\sum_{k=1}^{\infty} \beta_k^2 < \infty$ uniformly almost surely;
         \item $\mathbb E[\eta_k \mid \mathcal H_k] = 0$ and $\mathbb E[\eta_k^2 \mid \mathcal H_k] < \infty$ almost surely.
     \end{enumerate}
     where $\mathcal H_k = \{ \Delta_k, \Delta_{k-1}, \ldots, \eta_{k-1}, \ldots, \alpha_{k-1}, \ldots, \beta_{k-1}, \ldots, \}$.
     
     In RM, $\alpha_k, \beta_k$ are deterministic, but in Dvoretzky's theorem, they can be stochastic, and is useful in cases they are function of $\Delta_k$.
 \end{theorem}
+
+\begin{proof}
+    Please refer to the book, page 110.
+\end{proof}
+
+And we can also use this theorem to prove the convergence of the mean estimation, Robbins-Monro algorithm as well, and please refer to the book too.
+
+\begin{theorem}[Exentsion of Dvoretzky's Theorem]
+    Consider a finite set $\mathcal S$ of real numbers, a stochastic process:
+    \[ \Delta_{k+1}(s) = (1 - \alpha_k(s)) \Delta_k(s) + \beta_k(s) \eta_k(s) \]
+    $\Delta_k(s)$ converges to 0 almost surely, if:
+    \begin{enumerate}
+        \item $\sum_{k=1}^{\infty} \alpha_k(s) = \infty$, $\sum_{k=1}^{\infty} \alpha_k^2(s) < \infty$, $\sum_{k=1}^{\infty} \beta_k^2(s) < \infty$ 
+        and $\mathbb E[\beta_k(s) \mid \mathcal H_k] \leq \mathbb E[\alpha_k(s) \mid \mathcal H_k]$ uniformly almost surely.
+        \item $\| \mathbb E[\eta_k \mid \mathcal H_k] \|_{\infty} \leq \gamma \| \Delta_k \|_{\infty}$, where $\gamma \in (0, 1)$
+        \item $\text{var}[\eta_k \mid \mathcal H_k] \leq C (1 + \| \Delta_k \|_{\infty})^2$, where $C$ is a constant.
+    \end{enumerate}
+    where $\mathcal H_k = \{ \Delta_k, \Delta_{k-1}, \ldots, \eta_{k-1}, \ldots, \alpha_{k-1}, \ldots, \beta_{k-1}, \ldots, \}$.
+    
+    \begin{itemize}
+        \item The variable $s$ can be viewed as an index, in the context of reinforcement learning, it indicates a state or a
+state-action pair. The norm is maximum norm.
+        \item This theorem only requires that the expectation and variance are bounded by the error. The convergence requires the conditions are valid for every $s$.
+    \end{itemize}
+\end{theorem}
+
+We then show that \mydefination{stochastic gradient descent} (SGD) is a special case of the Robbins-Monro algorithm, and mean estimation is a special case 
+of the SGD. The preliminary knowledge of gradient descent, convex function and the convergence of the GD please refer to the book appendix D. 
+
+Given a optimization problem:
+\[ \min_{w} J(w) = \mathbb E[f(w, X)] \]
+where $f$ is a function of parameter $w$ and random vairable $X$, we can use the gradient descent to solve it:
+\begin{equation}
+    w_{k+1} = w_k - \alpha_k \nabla_{w_k} J(w_k) = w_k - \alpha_k \mathbb E[\nabla_{w} f(w_k, X_k)]
+\end{equation}
+
+The expectation is not computable, so we collect a larger number of data:
+\[ w_{k+1} = w_k - \frac{\alpha_k}{n} \sum_{i=1}^{n} \nabla_{w} f(w_k, x_i) \]
+
+And we if only use one sample at a time, we can use the stochastic gradient descent (SGD):
+\begin{equation}
+    w_{k+1} = w_k - \alpha_k \nabla_{w} f(w_k, x_k)
+\end{equation}
+
+An interesting \textbf{convergence pattern} is that it behaves similarly to the regular gradient
+descent algorithm when the estimate $w_k$ is far from the optimal solution $w^*$. Only when
+they are close, does the convergence of SGD exhibit more randomness.
+
+\begin{align*}
+\delta_k &= \frac{\left| \nabla_{w} f(w_k, x_k) - \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] \right|}
+                {\left| \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] \right|} \\
+&= \frac{\left| \nabla_{w} f(w_k, x_k) - \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] \right|}
+         {\left| \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] - \mathbb{E}\left[\nabla_{w} f(w^*, X)\right] \right|} 
+         \quad \text{as } \mathbb{E}\left[\nabla_{w} f(w^*, X)\right] = 0 \\
+&= \frac{\left| \nabla_{w} f(w_k, x_k) - \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] \right|}
+         {\left| \mathbb{E}\left[\nabla^2_{\tilde w} f(w_k, X)\right](w_k - w^*) \right|}
+         \quad \text{(by mean value theorem)} \\
+&\leq \frac{\left| \nabla_{w} f(w_k, x_k) - \mathbb{E}\left[\nabla_{w} f(w_k, X)\right] \right|}
+          {c \left| w_k - w^* \right|}
+\end{align*}
+
+Above we use stochastic formulation, but we can also use the deterministic formulation, the equations are the same, but samples are not 
+random, but fixed $\{ x_i \}_{i=1}^n$. So does the same equations are SGD too? The answer is yes, because if we set $X$ be a random variable that
+$P(X = x_i) = \frac{1}{n}$, then $\min_w J(w) = \frac{1}{n} f(w, x_i) = \mathbb E[f(w, X)]$.
+It means if we uniformly and independently sample $x_k$ from the $\{ x_i \}_{i=1}^n$, it is still SGD.
+
+\begin{theorem}[Convergence of SGD]
+    $w_k$ converges to the optimal solution $w^*$ almost surely, where $\mathbb{E}\left[\nabla_{w} f(w^*, X)\right] = 0$, if:
+    \begin{enumerate}
+        \item $0 < c_1 \leq \nabla_w^2 f(w, X) \leq c_2$;
+        \item $\sum_{k=1}^{\infty} \alpha_k = \infty$ and $\sum_{k=1}^{\infty} \alpha_k^2 < \infty$;
+        \item $\{ x_k \}_{k=1}^{\infty}$ is i.i.d.
+    \end{enumerate}
+\end{theorem}
+
+\begin{proof}
+    Let 
+    \[ g(w) = \nabla_w J(w) = \mathbb E[ \nabla_w f(w, X) ] \]
+    Then SGD aims to find the root of $g(w) = 0$, and $\tilde{g} = \nabla_w f(w, x)$ where $x$ is a sample of X:
+    \[ \tilde{g}(w, \eta) = \mathbb E[ \nabla_w f(w, X) ] + \nabla_w f(w, x) - \mathbb E[ \nabla_w f(w, X) ] = \mathbb E[ \nabla_w f(w, X) ] + \eta \]
+    Then the RM is:
+    \[ w_{k+1} = w_k - \alpha_k \tilde{g}(w, \eta) = w_k - \alpha_k \nabla_w f(w, x) \]
+    Then we show it follows 3 conditions in \ref{theorem:RM}:
+    \begin{enumerate}
+        \item $\nabla_w g(w) = \nabla_w \mathbb E[ \nabla_w f(w, X) ] = \mathbb E[ \nabla^2_w f(w, X) ] $, then because $0 < c_1 \leq \nabla_w^2 f(w, X) \leq c_2$,
+    $c_1 \leq \nabla_w g(w) \leq c_2$.
+        \item second conditions are the same
+        \item since $\{ x_k \}_{k=1}^{\infty}$ is i.i.d, $ \mathbb E_{x_k}[ \nabla_w f(w, x_k) ] = \mathbb E[ \nabla_w f(w, X) ]$ for all $k$, therefore
+        \[ \mathbb{E}[\eta_k|\mathcal{H}_k] = \mathbb{E}[\nabla_wf(w_k,x_k)-\mathbb{E}[\nabla_wf(w_k,X)]|\mathcal{H}_k] = 0 \]
+        as $\mathbb{E}[\nabla_wf(w_k,x_k) | \mathcal{H}_k] = \mathbb E_{x_k}[ \nabla_w f(w_k, x_k)]$ because of independency, 
+        $\mathbb{E}[\mathbb{E}[\nabla_wf(w_k,X)]|\mathcal{H}_k] = \mathbb{E}[\nabla_wf(w_k,X)]$ because $\mathbb{E}[\nabla_wf(w_k,X)]$ is function of $w_k$.
+        Same we can show $\mathbb{E}[\eta^2_k|\mathcal{H}_k] < \infty$.
+    \end{enumerate}
+\end{proof}
+
+
+\section{Temporal-Difference Methods}
+
+
 
 
 
@@ -635,6 +734,9 @@ A \mydefination{Probability Triple} is a tuple $(\Omega, \mathcal F, P)$, where:
     \item $P$ is a probability measure, which assigns a probability to each event in $\mathcal F$ such that $P(\Omega) = 1$ and $P(\emptyset) = 0$.
 \end{itemize}
 
+For example, the game of dice, $\Omega = \{1, 2, 3, 4, 5, 6\}$, $\mathcal F = \mathcal P(\Omega)$ is the power set of $\Omega$, we can define one 
+event $A = \{ w \in \Omega : w > 3 \} = \{4, 5, 6 \}$ with $\mathbb P(A) = 1 / 2$. 
+
 \begin{definition}[$\sigma$-algebra]
     A \mydefination{$\sigma$-algebra} $\mathcal F$ on a set $\Omega$ is a collection of subsets of $\Omega$ that satisfies the following properties:
     \begin{enumerate}
@@ -644,10 +746,86 @@ A \mydefination{Probability Triple} is a tuple $(\Omega, \mathcal F, P)$, where:
     \end{enumerate}
 \end{definition}
 
-A \mydefination{Random Variable} is a measurable function $X(\omega): \Omega \rightarrow \mathbb R$ that maps outcomes in $\Omega$ to real numbers.
+A \mydefination{Random Variable} is a measurable function $X(w): \Omega \rightarrow \mathbb R$ that maps \textbf{each} outcome in $\Omega$ to real numbers.
 Not all the mappings are random variables, the formal definition is:
-\[ A = \{ \omega \in \Omega \mid X(\omega) \leq x \} \in \mathcal F, \forall x \in \mathbb R \]
-This definition indicates that $X$ is a random variable only if $X(\omega) \leq x$ is an event in $\mathcal F$.
+\[ A = \{ w \in \Omega \mid X(w) \leq x \} \in \mathcal F, \forall x \in \mathbb R \]
+This definition indicates that $X$ is a random variable only if $X(w) \leq x$ is an event in $\mathcal F$, it is probabiliticaly measurable.
+
+\textbf{Simple} random variables are those that take a finite number of values, and they can be expressed as:
+\[ X(w) = \sum_{x \in \mathcal X} x \mathbb{I}_{A_x}(w) \]
+where $A_x = \{ w \in \Omega \mid X(w) = x \} = X^{-1}(x)$
+and
+\[
+\mathbb{I}_{A_x}(w) = \begin{cases}
+    1 & \text{if } w \in A_x, \\
+    0 & \text{otherwise}.
+\end{cases}
+\]
+
+With the above preparation, we can define the \mydefination{Expectation} of a random variable $X$:
+\begin{equation}
+    \mathbb E[X] = \sum_{x \in \mathcal X} x \mathbb P(A_x)
+\end{equation}
+
+\begin{lemma}[Basic Properties]
+    \begin{enumerate}
+        \item $\mathbb E[a \mid Y] = a$, where $a$ is a constant;
+        \item $\mathbb E[aX + bZ \mid Y] = a \mathbb E[X \mid Y] + b \mathbb E[Z \mid Y]$, where $a, b$ are constants;
+        \item $\mathbb E[X \mid Y] = \mathbb E[X]$ if $X$ is independent of $Y$;
+        \item $\mathbb E[Xf(Y) \mid Y] = f(Y) \mathbb E[X \mid Y]$, where $f(Y)$ is a function of $Y$;
+        \item $\mathbb E[f(Y) \mid Y] = f(Y)$;
+        \item $\mathbb E[X \mid Y, f(Y)] = \mathbb E[X \mid Y]$;
+        \item If $X \geq 0$, then $\mathbb E[X \mid Y] \geq 0$;
+        \item If $X \geq Z$, then $\mathbb E[X \mid Y] \geq \mathbb E[Z \mid Y]$;
+        \item $\mathbb E \big [ \mathbb E[X \mid Y] \big ] = \mathbb E[X]$;
+        \item $\mathbb E \big [ \mathbb E[X \mid Y, Z] \big ] = \mathbb E[X]$;
+        \item $\mathbb E \big [ \mathbb E[X \mid Y] \mid Y \big ] = \mathbb E[X \mid Y]$;
+    \end{enumerate}
+\end{lemma}
+
+Given a stochastic sequence $\{ X_k \} = \{ X_1, X_2, \ldots \}$:
+\begin{definition}[Sure Convergence]
+    $\{ X_k \}$ converges \mydefination{surely} to $X$ if:
+    \[ \lim_{k \rightarrow \infty} X_k(w) = X(w), \quad \forall w \in \Omega \]
+    this can be equivalently written as:
+    \[ A = \Omega \quad \text{where} \quad A = \{ w \in \Omega \mid \lim_{k \rightarrow \infty} X_k(w) = X(w) \} \]
+\end{definition}
+
+\begin{definition}[Almost Sure Convergence]
+    $\{ X_k \}$ converges \mydefination{almost surely} (or almost everywhere or with probability 1) to $X$ if:
+    \[ \mathbb P(A) = 1 \quad \text{where} \quad A = \{ w \in \Omega \mid \lim_{k \rightarrow \infty} X_k(w) = X(w) \} \]
+    The points, for which this limit is invalid, form a set of zero measure. For the sake of simplicity, it is often written as:
+    \[ P \big ( \lim_{k \rightarrow \infty} X_k = X \big ) = 1 \]
+    and denote as $X_k \xrightarrow{a.s.} X$.
+\end{definition}
+
+\begin{definition}[Convergence in Probability]
+    $\{ X_k \}$ converges \mydefination{in probability} to $X$ if $\forall \epsilon > 0$:
+    \[ \lim_{k \rightarrow \infty} \mathbb P(A_k) = 0 \quad where  \mathbb A_k = \{ w \in \Omega : |X_k(w) - X(w)| > \epsilon \} \]
+    This means that the probability of the difference between $X_k$ and $X$ being greater than $\epsilon$ goes to zero as $k$ increases.
+    It can be written as:
+    \[ \lim_{k \rightarrow \infty} \mathbb P \big ( |X_k - X| > \epsilon \big ) = 0 \]
+\end{definition}
+
+\begin{definition}[Convergence in Mean]
+    $\{ X_k \}$ converges \mydefination{in mean} ($r$-th mean or in $L^r$ norm) to $X$ if:
+    \[ \lim_{k \rightarrow \infty} \mathbb E[|X_k - X|^r] = 0 \]
+    This means that the expected value of the absolute difference between $X_k$ and $X$ goes to zero as $k$ increases.
+\end{definition}
+
+\begin{definition}[Convergence in Distribution]
+    $\{ X_k \}$ converges \mydefination{in distribution} to $X$ if:
+    \[ \lim_{k \rightarrow \infty} \mathbb P(X_k \leq a) = \mathbb P(X \leq a) \quad \forall a \in \mathbb R \]
+    a compact expression is:
+    \[ \lim_{k \rightarrow \infty} \mathbb P(A_k) = \mathbb P(A) \]
+    where
+    \[ A_k = \{ w \in \Omega : X_k(w) \leq a \}, A = \{ w \in \Omega : X(w) \leq a \} \]
+\end{definition}
+
+The relationship between these convergence types is:
+almost sure convergence $\rightarrow$ convergence in probability $\rightarrow$ convergence in distribution.
+Convergence in mean $\rightarrow$ convergence in probability $\rightarrow$ convergence in distribution.
+And convergence in mean does not imply almost sure convergence.
 
 
 
