@@ -630,7 +630,7 @@ we can use the Robbins-Monro algorithm to prove that with careful choice of $\al
 
 And we can also use this theorem to prove the convergence of the mean estimation, Robbins-Monro algorithm as well, and please refer to the book too.
 
-\begin{theorem}[Exentsion of Dvoretzky's Theorem]
+\begin{theorem}[Exentsion of Dvoretzky's Theorem] \label{theorem:extension_dvoretzky}
     Consider a finite set $\mathcal S$ of real numbers, a stochastic process:
     \[ \Delta_{k+1}(s) = (1 - \alpha_k(s)) \Delta_k(s) + \beta_k(s) \eta_k(s) \]
     $\Delta_k(s)$ converges to 0 almost surely, if:
@@ -685,8 +685,8 @@ they are close, does the convergence of SGD exhibit more randomness.
 \end{align*}
 
 Above we use stochastic formulation, but we can also use the deterministic formulation, the equations are the same, but samples are not 
-random, but fixed $\{ x_i \}_{i=1}^n$. So does the same equations are SGD too? The answer is yes, because if we set $X$ be a random variable that
-$P(X = x_i) = \frac{1}{n}$, then $\min_w J(w) = \frac{1}{n} f(w, x_i) = \mathbb E[f(w, X)]$.
+random, they are fixed $\{ x_i \}_{i=1}^n$. So does the same equations are SGD too? The answer is yes, because if we set $X$ be a random variable that
+$P(X = x_i) = \frac{1}{n}$, then $\min_w J(w) = \frac{1}{n} \sum f(w, x_i) = \mathbb E[f(w, X)]$.
 It means if we uniformly and independently sample $x_k$ from the $\{ x_i \}_{i=1}^n$, it is still SGD.
 
 \begin{theorem}[Convergence of SGD]
@@ -720,8 +720,167 @@ It means if we uniformly and independently sample $x_k$ from the $\{ x_i \}_{i=1
 
 
 \section{Temporal-Difference Methods}
+The algorithm is:
+\begin{equation} \label{eq:TD}
+    v_{t+1}(s_t) = v_t(s_t) - \alpha_t(s_t) [v_t(s_t) - (r_{t+1} + \gamma v_t(s_{t+1}))]
+\end{equation}
+and $v_{t+1}(s) = v_t(s)$ for all $s \neq s_t$, where $t = 0, 1, 2, \ldots$. Here $v_t(s_t)$ is the estimate of $V^{\pi}(s_t)$, $\alpha_t(s_t)$ is the 
+learning rate. Only value that are visited will update!
 
+\[ V^{\pi}(s) = \mathbb E \big [ R_{t+1} + \gamma G_{t+1} \mid S_t = s \big ] = \mathbb E \big [ R_{t+1} + \gamma V^{\pi}(S_{t+1}) \mid S_t = s \big ] \]
 
+Then let
+\[ g(V^{\pi}(s_t)) = V^{\pi}(s_t) - \mathbb E \big [ R_{t+1} + \gamma V^{\pi}(S_{t+1}) \mid S_t = s \big ] = 0 \]
+
+But we will only get samples so
+\begin{align*}
+    \tilde{g}(V^{\pi}(s_t)) =&\; V^{\pi}(s_t) - \left[ r_{t+1} + \gamma V^{\pi}(s_{t+1}) \right] \\
+    =&\; \underbrace{\left( V^{\pi}(s_t) - \mathbb{E} \left[ R_{t+1} + \gamma V^{\pi}(S_{t+1}) \mid S_t = s_t \right] \right)}_{g(V^{\pi}(s_t))} \\
+    &+ \underbrace{\left( \mathbb{E} \left[ R_{t+1} + \gamma V^{\pi}(S_{t+1}) \mid S_t = s_t \right] - \left[ r_{t+1} + \gamma V^{\pi}(s_{t+1}) \right] \right)}_{\eta}.
+\end{align*}
+then we get RM algorithm as:
+\[ v_{t+1}(s_t) = v_t(s_t) - \alpha_t(s_t) [v_t(s_t) - (r_{t+1} + \gamma V^{\pi}(s_{t+1}))] \]
+the only difference is $V^{\pi}$ replaces $v_t(s_{t+1})$. And we will show this replacement does not affect the convergence of TD in \ref{theorem:convergence_td}.
+
+\[
+    \underbrace{v_{t+1}(s_t)}_{\text{new estimate}} = \underbrace{v_t(s_t)}_{\text{current estimate}} - 
+    \alpha_t(s_t) \overbrace{[v_t(s_t) - \underbrace{(r_{t+1} + \gamma v_t(s_{t+1}))}_{\text{TD target } \bar v_t}]}^{\text{TD error } \delta_t}
+\]
+
+$\bar v_t$ is called TD target because:
+\begin{align*}
+v_{t+1}(s_t) - \bar v_t &= [1 - \alpha_t(s_t)] [v_{t}(s_t) - \bar v_t] \\
+                        &\rightarrow \text{Get the absolute value} \\
+|v_{t+1}(s_t) - \bar v_t| &= |1 - \alpha_t(s_t)| |v_{t}(s_t) - \bar v_t| \\
+                        & < |v_{t}(s_t) - \bar v_t|
+\end{align*}
+
+The expectation of TD error is 0 if $v_{t}(s_t) = V^{\pi}(s_t)$, so it reflects the discrepancy between the estimate and the true state value, it can be 
+interpreted as \mydefination{innovation}, which indicates new information obtained from the experience sample. A comparison of TD and MC can be seen in the book,
+table 7.1.
+
+\begin{theorem}[Convergence of TD] \label{theorem:convergence_td}
+    Given a policy $\pi$, in \ref{eq:TD}, $v_{t}(s)$ converges almost surely to $V^{\pi}(s)$ as $t \rightarrow \infty$ for all $s \in \mathcal S$ if 
+    $\sum_t \alpha_t(s) = \infty$ and $\sum_t \alpha_t^2(s) < \infty$ for all $s \in \mathcal S$. When $\alpha_t$ is constant, it can still be shown that the 
+    algorithm converges in the sense of expectation, though it does not follow second condition.
+\end{theorem}
+
+\begin{proof}
+    Deducting $V^{\pi}(s)$ from both side in \ref{eq:TD}, then show that it follows \ref{theorem:extension_dvoretzky}.
+\end{proof}
+
+Then we introduce \mydefination{Sarsa}, another TD algorithm that can directly estimate action values.
+\begin{equation} \label{eq:sara_TD}
+    q_{t+1}(s_t, a_t) = q_t(s_t, a_t) - \alpha_t(s_t, a_t) \big [ q_t(s_t, a_t) - (r_{t+1} + \gamma q_t(s_{t+1}, a_{t+1})) \big ]
+\end{equation}
+and $q_{t+1}(s, a) = q_t(s, a)$ for all $(s,a) \neq (s_t, a_t)$, where $t = 0, 1, 2, \ldots$.
+It is given for solving the Bellman equation of a given policy:
+\begin{equation}
+    Q^{\pi}(s, a) = \mathbb E \big [ R + \gamma Q^{\pi}(S', A') \mid s, a \big ], \quad \forall (s, a)
+\end{equation}
+
+Let's proof this is a Bellman equation:
+\begin{proof}
+    \[
+    \begin{array}{lll}
+        Q^{\pi}(s,a) &=& \sum_{r}r p(r|s,a)+\gamma\sum_{s^{\prime}}\sum_{a^{\prime}}Q^{\pi}(s^{\prime},a^{\prime})p(s^{\prime}|s,a)\pi(a^{\prime}|s^{\prime}) \\ 
+        &=& \sum_{r}r p(r|s,a)+\gamma\sum_{s^{\prime}}p(s^{\prime}|s,a)\sum_{a^{\prime}}Q^{\pi}(s^{\prime},a^{\prime})\pi(a^{\prime}|s^{\prime}).
+    \end{array}
+    \]
+    This equation establishes the relationships among the action values. Since
+    \[
+    \begin{array}{lll}
+        p(s^{\prime},a^{\prime}|s,a) &=& p(s^{\prime}|s,a)p(a^{\prime}|s^{\prime},s,a) \\ 
+        &=& p(s^{\prime}|s,a)p(a^{\prime}|s^{\prime}) \quad \text{due to conditional independence} \\ 
+        &=& p(s^{\prime}|s,a)\pi(a^{\prime}|s^{\prime})
+    \end{array}
+    \]
+    Then
+    \[
+        Q^{\pi}(s,a)=\sum_{r}r p(r|s,a)+\gamma\sum_{s^{\prime}}\sum_{a^{\prime}}Q^{\pi}(s^{\prime},a^{\prime})p(s^{\prime},a^{\prime}|s,a).
+    \]
+\end{proof}
+
+\begin{algorithm}[H]
+\caption{Optimal policy learning by Sarsa}
+\KwIn{Initial policy $\pi_0(a|s)$, $Q_0(s,a)$, $\forall (s,a), \epsilon \in (0, 1]$}
+
+\ForEach{episode}{
+    \textbf{Episode generation:} Generate $a_0$ at $s_0$ following $\pi_0(s_0)$ \\
+    \While{$s_t (t = 0, 1, 2, \ldots) \neq s_{target}$}{
+        Generate $r_{t+1}, s_{t+1}$ and $a_{t+1}$ \\
+        $q_{t+1}(s_t, a_t) \gets q_t(s_t, a_t) - \alpha_t(s_t, a_t) [q_t(s_t, a_t) - (r_{t+1} + \gamma q_t(s_{t+1}, a_{t+1}))]$ \\
+        $\pi_{t+1}(a|s_t) \gets \begin{cases}
+        1 - \frac{\epsilon}{|\mathcal A(s)|}(|\mathcal A(s)| - 1) & a = a^* = \arg\max_a q_{t+1}(s_t, a) \\
+        \frac{\epsilon}{|\mathcal A(s)|} & a \neq a^*.
+        \end{cases}$
+    }
+}
+\end{algorithm}
+
+A variant of Sarsa is Expected Sarsa:
+\[
+    q_{t+1}(s_t, a_t) = q_t(s_t, a_t) - \alpha_t(s_t, a_t) \big [ q_t(s_t, a_t) - (r_{t+1} + \gamma \mathbb E [ q_t(s_{t+1}, A) ] ) \big ]
+\]
+where $\mathbb E [ q_t(s_{t+1}, A) ] = \sum_a \pi_t(a | s_{t+1}) q_t(s_{t+1}, a) = v_t(s_{t+1})$. Although calculating the
+expected value may increase the computational complexity slightly, it is beneficial
+in the sense that it reduces the estimation variances. This variant can be viewed as solving
+\[
+    Q^{\pi}(s, a) = \mathbb E \big [ R_{t+1} + \gamma \mathbb E [ Q^{\pi}(S_{t+1}, A_{t+1}) \mid S_{t+1} ] \mid S_t = s, A_t = a \big ], \quad \forall (s, a)
+\]
+which is again a Bellman equation as $\mathbb E [ Q^{\pi}(S_{t+1}, A_{t+1}) \mid S_{t+1} ] = \sum_{A'} Q^{\pi}(S_{t+1}, A') \pi(A' \mid S_{t+1}) = V^{\pi}(S_{t+1})$.
+
+Now we introduce \mydefination{n-step Sarsa}, We will see that Sarsa and MC learning are two extreme cases of n-step Sarsa.
+\[
+\begin{array}{rll}
+    \text{Sarsa} & \leftarrow & G^{(1)}_{t} = R_{t+1} + \gamma Q^{\pi}(S_{t+1}, A_{t+1}) \\
+    && G^{(2)}_{t} = R_{t+1} + \gamma R_{t+2} + \gamma^2 Q^{\pi}(S_{t+2}, A_{t+2}) \\
+    && \vdots \\
+    \text{n-step Sarsa} & \leftarrow & G^{(n)}_{t} = R_{t+1} + \gamma R_{t+2} + \cdots + \gamma^n Q^{\pi}(S_{t+n}, A_{t+n}) \\
+    && \vdots \\
+    \text{policy iteration} & \leftarrow & G^{(\infty)}_{t} = R_{t+1} + \gamma R_{t+2} + \cdots
+\end{array}
+\]
+It should be noted that $G_t = G^{(1)}_{t} = G^{(2)}_{t} = G^{(n)}_{t} = G^{(\infty)}_{t}$, where the superscripts merely
+indicate the different decomposition structures of $G_t$. 
+
+When $n=1$, we get \ref{eq:sara_TD}, when $n=\infty$, $q_{t+1}(s_t, a_t) = g_t = r_{t+1} + \gamma r_{t+2} + \gamma^2 r_{t+3} + \cdots$.
+And for the general $n$:
+\[
+    q_{t+1}(s_t, a_t) = q_t(s_t, a_t) - \alpha_t(s_t, a_t) [q_t(s_t, a_t) - (r_{t+1} + \gamma r_{t+2} + \cdots + \gamma^n q_t(s_{t+n}, a_{t+n}))]
+\]
+
+Now, finally we introduce \mydefination{Q-learning}, which can directly estimate optimal action values and find
+optimal policies (Sarsa need the policy improvement step):
+\begin{equation} \label{eq:q_learning}
+    q_{t+1}(s_t, a_t) = q_t(s_t, a_t) - \alpha_t(s_t, a_t) \big [ q_t(s_t, a_t) - (r_{t+1} + \gamma \max_{a \in A(s_{t+1})} q_t(s_{t+1}, a)) \big ]
+\end{equation}
+
+Given $(s_t, a_t)$, Sarsa need $(r_{t+1}, s_{t+1}, a_{t+1})$ in every iteration, whereas Q-learning merely requires $(r_{t+1}, s_{t+1})$.
+It is for solving the following equation:
+\begin{equation}
+    q(s, a) = \mathbb E \big [ R_{t+1} + \gamma \max_a q(S_{t+1}, a) \mid S_t = s, A_t = a \big ]
+\end{equation}
+we can show this is also a Bellman equation:
+\begin{align*}
+    q(s, a) &= \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) \max_{a \in \mathcal A(s')} q(s', a) \\
+    & \xrightarrow{\text{taking maximum}} \\
+    \max_{a \in \mathcal A(s)} & = \max_{a \in \mathcal A(s')} \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) \max_{a \in \mathcal A(s')} q(s', a) \big ] \\
+    & \xrightarrow{\text{let } v(s) = \max_{a \in \mathcal A(s)} q(s, a)} \\
+    v(s) &= \max_{a \in \mathcal A(s')} \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) v(s') \big ] \\
+            &= \max_{\pi} \sum_{a \in A(s)} \pi(a \mid s) \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) v(s') \big ]
+\end{align*}
+
+\begin{definition}
+    \begin{itemize}
+        \item \mydefination{behavior policy} is the one used to generate experience samples.
+        \item \mydefination{target policy} is the one that is constantly updated to converge to an optimal policy.
+        \item \mydefination{on-policy}: When the behavior policy is the same as the target policy, such a learning process is called on-policy.
+        \item \mydefination{off-policy}: When the behavior policy is \textbf{not} the same as the target policy, like Q-learning. The advantage of off-policy 
+        learning is that it can learn optimal policies based on the experience samples generated by other policies. So we can choose a exploratory behavior 
+        policy and the learning efficiency will be increased.
+    \end{itemize}
+\end{definition}
 
 
 
