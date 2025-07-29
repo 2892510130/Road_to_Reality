@@ -41,6 +41,10 @@
     \item Bellman Optimality Equation
 \end{introduction}
     
+\section{Notation}
+At some point I use $V^{\pi}$ to denote the value function under a certain policy $\pi$, but later I use $v_{\pi}$, they are the same.
+It's a lagacy from my reading of the \textit{Dive into Deep Learning} book at first.
+
 \section{Markov Decision Process}
 \mydefination{State} and \mydefination{Action} can describe a robot state respect to the enviroment and actions to move around, 
 $\mathcal S, \mathcal A$ are states and actions a robot can take, when taking an action, state after may not
@@ -60,7 +64,7 @@ $\tau = (s_0, a_0, r_0, s_1, a_1, r_1, s_2, a_2, r_2, \ldots)$, which has probab
 We then define \mydefination{Return} as the total reward $R(\tau) = \sum_t r_t$, 
 the goal of reinforcement learning is to find a trajectory that has the largest return. The trajectory might be infinite, so in order for a 
 meaningful formular of its return, we introduce a discount factor $\gamma < 1$, $R(\tau) = \sum_{t=0}^{\infty}\gamma^tr_t$. For large $\gamma$, 
-the robot is encouraged to explore, for small one to take a short trajetory to goal.
+the robot is encouraged to explore, for small one to take a short trajectory to goal.
 
 Markov system only depend on current state and action, not the history one (but we can always augment the system).
 
@@ -865,7 +869,7 @@ we can show this is also a Bellman equation:
 \begin{align*}
     q(s, a) &= \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) \max_{a \in \mathcal A(s')} q(s', a) \\
     & \xrightarrow{\text{taking maximum}} \\
-    \max_{a \in \mathcal A(s)} & = \max_{a \in \mathcal A(s')} \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) \max_{a \in \mathcal A(s')} q(s', a) \big ] \\
+    \max_{a \in \mathcal A(s)} q(s, a) & = \max_{a \in \mathcal A(s')} \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) \max_{a \in \mathcal A(s')} q(s', a) \big ] \\
     & \xrightarrow{\text{let } v(s) = \max_{a \in \mathcal A(s)} q(s, a)} \\
     v(s) &= \max_{a \in \mathcal A(s')} \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) v(s') \big ] \\
             &= \max_{\pi} \sum_{a \in A(s)} \pi(a \mid s) \big [ \sum_r p(r \mid s, a)r + \gamma \sum_{s'}p(s' | s, a) v(s') \big ]
@@ -938,7 +942,7 @@ We can use a unified formulation for all the TD algorithm:
 \section{Value Function Methods}
 Instead of using table to represent the value function, which takes a lot of memory and does not generalize well at unknown state, we now introduce another way - 
 using function estimation. In particular, the objective function is:
-\begin{equation}
+\begin{equation} \label{eq:obj_value_func}
     J(w) = \mathbb E \big [ (V^{\pi}(S) - \hat v(S, w))^2 \big ]
 \end{equation}
 
@@ -949,7 +953,7 @@ the stationary distribution of the Markov process under policy $\pi$. The object
     J(w) = \sum_{s \in \mathcal S} d_{\pi}(s) (V^{\pi}(S) - \hat v(S, w))^2
 \end{equation}
 
-\begin{definition}
+\begin{definition}[Stationary Distribution]
     The probability of the agent transitioning from $s_i$ to $s_j$ using exactly $k$ steps is denoted as
     \[ p_{ij}^k = \Pr(S_{t_k} = j \mid S_{t_0} = i) \]
     by the definition of $P_{\pi}$, we have
@@ -968,7 +972,273 @@ the initial time step. Then
     \[ d_k^T = d_0^T P_{\pi}^k \]
     When we consider the long-term behavior of the Markov process, it holds under certain conditions that
     \[ \lim_{k \rightarrow \infty} P_{\pi}^k = \mathbf 1_n d_{\pi}^T \]
+    $\mathbf 1_n d_{\pi}^T$ is a constant matrix with all its rows equal to $d_{\pi}^T$, 
+    so
+    \begin{equation} \label{eq:limiting_distribution}
+        \lim_{k \rightarrow \infty} d_k^T = d_0^T \lim_{k \rightarrow \infty} P_{\pi}^k = d_0^T \mathbf 1_n d_{\pi}^T = d_{\pi}^T
+    \end{equation}
+    this means that the state distribution converges to a constant value $d_{\pi}$, which is called the limiting distribution, it is 
+    independent of initial distribution $d_0$.
+
+    The value of $d_{\pi}$ is by taking limit of $ d_k^T = d_{k-1}^T P_{\pi}$, where we will get
+    \begin{equation} \label{eq:stationary_distribution}
+        d_{\pi}^T = d_{\pi}^T P_{\pi}
+    \end{equation}
+    As a result, it is the left eigenvector of $P_{\pi}$ associated with eigenvalue 1.
+
+    The solution of \ref{eq:stationary_distribution} is usually called a stationary distribution, whereas the distribution
+in \ref{eq:limiting_distribution} is usually called the limiting distribution. Note that \ref{eq:limiting_distribution} implies \ref{eq:stationary_distribution}, 
+but the converse may not be true. 
+
+    \begin{itemize}
+        \item State $s_j$ is said to be \mydefination{accessible} from $s_i$ f there exists a finite integer $k$
+so that $[P^k_{\pi}]_{ij} > 0$.
+        \item If two states $s_i$ and $s_j$ are mutually accessible, then the two states are said to \mydefination{communicate}.
+        \item A Markov process is called \mydefination{irreducible} if all of its states communicate with each other. $k$ maybe different for different $i,j$.
+        \item A Markov process is called \mydefination{regular} if there exists $k \geq 1$, such that $[P^k_{\pi}]_{ij} > 0, \forall i, j$. Regular Markov process
+        is also irreducible, but the inverse is not. However, if a irreducible one exists $i$ such that $[P_{\pi}]_{ij} > 0$, then it is also regular. Moreover, 
+        if $P^{k}_{\pi} > 0$, then for any $k \geq k'$, $P^{k'}_{\pi} > 0$.
+    \end{itemize}
 \end{definition}
+
+We can use gradient descent to minimize the $J(w)$:
+\[
+\begin{array}{lll}
+    \nabla_{w}J(w_{k})&=&\nabla_{w}\mathbb{E}[(v_{\pi}(S)-\hat{v}(S,w_{k}))^{2}] \\ 
+    &=& \mathbb{E}[ \nabla_{w} (v_{\pi}(S)-\hat{v}(S,w_{k}))^{2} ] \\
+    &=& 2\mathbb{E}[(v_{\pi}(S)-\hat{v}(S,w_{k}))(-\nabla_{w}\hat{v}(S,w_{k}))]\\ 
+    &=& -2\mathbb{E}[(v_{\pi}(S)-\hat{v}(S,w_{k}))\nabla_{w}\hat{v}(S,w_{k})]
+\end{array}
+\]
+therefore the algorithm is:
+\begin{equation}
+    w_{k+1}=w_{k}+2\alpha_{k}\mathbb{E}[(v_{\pi}(S)-\hat{v}(S,w_{k}))\nabla_{w}\hat{v}(S,w_{k})]
+\end{equation}
+with the stochastic replacement, and coefficient 2 merge into $\alpha_k$ without loss of generality, we get:
+\begin{equation}
+    w_{t+1}=w_{t}+\alpha_{t}\bigl(v_{\pi}(s_{t})-\hat{v}(s_{t},w_{t})\bigr)\nabla_{w}\hat{v}(s_{t},w_{t})
+\end{equation}
+
+Now we need to replace $v_{\pi}$, either with Monte Carlo:
+\[ w_{t+1}=w_{t}+\alpha_{t}(g_{t}-\hat{v}(s_{t},w_{t}))\nabla_{w}\hat{v}(s_{t},w_{t}) \]
+or with TD
+\begin{equation} \label{eq:td_value_func}
+    w_{t+1}=w_{t}+\alpha_{t}\left[r_{t+1}+\gamma\hat{v}(s_{t+1},w_{t})-\hat{v}(s_{t},w_{t})\right]\nabla_{w}\hat{v}(s_{t},w_{t}) 
+\end{equation}
+
+    \textbf{Tabular TD learning is a special case of TD-Linear}.
+
+    However, \ref{eq:td_value_func} does not really solve \ref{eq:obj_value_func}, so we need to explain it rigorously. We first consider deterministic
+algorithm:
+\begin{equation}
+    w_{t+1}=w_{t}+\alpha_{t}\mathbb{E}\biggl[(r_{t+1}+\gamma\phi^{T}(s_{t+1})w_{t}-\phi^{T}(s_{t})w_{t})\phi(s_{t})\biggr]
+\end{equation}
+then we will show \ref{eq:td_value_func} is the SGD implementation of it. Let 
+\[
+\Phi=\left[
+    \begin{array}{c}{{\vdots}}\\ {{\phi^{T}(s)}}\\ {{\vdots}}
+    \end{array}\right]\in\mathbb{R}^{n\times m},
+\quad D=\left[
+    \begin{array}{ccc}{{\ddots}}&{{}}\\ {{}}&{{d_{\pi}(s)}}&{{}}\\ {{}}&{{}}&{{\ddots}}\\
+    \end{array}\right]\in\mathbb{R}^{n\times n}
+\]
+
+\begin{lemma} \label{lemma:td_value_func_rep}
+    The expectation in \ref{eq:td_value_func} can be rewritten as
+    \[ \mathbb{E}\Big[\big(r_{t+1}+\gamma\phi^{T}(s_{t+1})w_{t}-\phi^{T}(s_{t})w_{t}\big)\phi(s_{t})\Big]=b-A w_{t} \]
+    where
+    \begin{align*}
+        A &\doteq \Phi^{T}D(I-\gamma P_{\pi})\Phi\in\mathbb{R}^{m\times m} \\ 
+        b &\doteq \Phi^{T}D r_{\pi}\in\mathbb{R}^{m}.
+    \end{align*}
+    and $s_t$ is assumed to obey the stationary distribution $d_{\pi}$.
+\end{lemma}
+
+Then \ref{eq:td_value_func} can be rewritten as $w_{t+1}=w_{t}+\alpha_{t}(b-A w_{t})$, and it converges to $w^{\star}=A^{-1}b$, since 
+$A$ is invertible and positive definite. Moreover, in the tabular case, as $n = |\mathcal S|$ and $\phi(s)=[0,\cdot\cdot\cdot,1,\cdot\cdot\cdot,0]^{T}$,
+we will get $w^{*}\ =A^{-1}b\ =v_{\pi}$. These statements' proof please refer to the book section 8.2.
+
+Then we show TD learning algorithm \ref{eq:td_value_func} minimizes the projected Bellman error. 
+\ref{eq:obj_value_func} can be written in vector form as $J(w) = \| \hat v(w) - v_{\pi} \|_D^2$, where $\| x \|_D^2 = x^T D x = \| D^{1/2}x \|_2^2$, $D$ is 
+given above. But this one has the true state value, so now we introduce Bellman error
+\begin{equation} \label{eq:Bellman_error}
+    J_{BE}(w) = \| \hat v(w) - (r_{\pi} + \gamma P_{\pi} \hat v(w)) \|_D^2 = \| \hat v(w) - T_{\pi} (\hat v(w)) \|_D^2
+\end{equation}
+where $T_{\pi}(x) = r_{\pi} + \gamma P_{\pi} x$ is the Bellman operator.
+
+We can see this error may not be minimized to zero due to the limited approximation ability of the approximator. By contrast, an objective function
+that can be minimized to zero is the projected Bellman error
+\begin{equation} \label{eq:projected_Bellman_error}
+    J_{PBE}(w) = \| \hat v(w) - MT_{\pi} (\hat v(w)) \|_D^2
+\end{equation}
+where $M \in \mathbb R^{n \times n}$ is the orthogonal projection matrix that geometrically projects any vector onto the space of all approximations.
+We can show that $M=\Phi(\Phi^{T}D\Phi)^{-1}\Phi^{T}D\in\mathbb{R}^{n\times n}$ is the projection matrix that geometrically projects any vector onto 
+the range space $\Phi$. Since $\hat v(w)$ is in the range space of $\Phi$, we can always find a value of w that can minimize
+$J_{PBE}(w)$ to zero, it can be proven it is $w^{\star}=A^{-1}b$.
+
+We can show that in linear case the bound of the error
+\[ \|{\hat{v}}(w^{*})-v_{\pi}\|_{D}=
+\|\Phi w^{*}-v_{\pi}\|_{D}\leq{\frac{1}{1-\gamma}}\operatorname*{min}_{w}\|{\hat{v}}(w)-v_{\pi}\|_{D}=
+{\frac{1}{1-\gamma}}\operatorname*{min}_{w}\sqrt{J_{E}(w)} \]
+
+Next we introduce \mydefination{least-squares} TD (LSTD), we can write $A$ and $b$ as (in proof of \ref{lemma:td_value_func_rep})
+\begin{align*}
+    A &= \mathbb{E}\left[\phi(s_{t})\left(\phi(s_{t})-\gamma\phi(s_{t+1})\right)^{T}\right], \\ 
+    b &= \mathbb{E}\left[r_{t+1}\phi(s_{t})\right].
+\end{align*}
+
+The idea of LSTD is simple: if we can use random samples to directly obtain the estimates of $A$ and $b$, then the optimal parameter can be directly estimated.
+In particular, given a trajectory $(s_0, r_1, s_1, \ldots)$ under $\pi$, we have
+\begin{align}
+    \hat{A}_{t} &= \sum_{k=0}^{t-1}\phi(s_{k})\left(\phi(s_{k})-\gamma\phi(s_{k+1})\right)^{T}, \\ 
+    \hat{b}_{t} &= \sum_{k=0}^{t-1}r_{k+1}\phi(s_{k}).
+\end{align}
+we omitted $1 / t$, because it does not change the result that $w_{t}=\hat{A}_{t}^{-1}\hat{b}_{t}$.
+
+The advantage of LSTD is that it uses experience samples more efficiently and converges faster than the TD method. 
+
+The disadvantages of LSTD are as follows. First, it can only estimate state values. Moreover, while the TD algorithm allows nonlinear approximators, LSTD
+does not. Second, the computational cost of LSTD is higher than that of TD since LSTD as we need to calculate inverse (but we can introduce a iterative algorithm
+).
+
+Now, all we talked in this section evaluate value function, but what about action values? We can modify \ref{eq:td_value_func}
+\begin{equation} \label{eq:td_action_func}
+    w_{t+1}=w_{t}+\alpha_{t}\Bigl[r_{t+1}+\gamma\hat{q}(s_{t+1},a_{t+1},w_{t})-\hat{q}(s_{t},a_{t},w_{t})\Bigr]\nabla_{w}\hat{q}(s_{t},a_{t},w_{t})
+\end{equation}
+
+\vspace{\baselineskip}
+
+\begin{algorithm}[H]
+\caption{Sarsa with function approximation}
+\KwIn{Initial policy $\pi_0$, initial parameter $w_0$}
+\KwOut{Learn an optimal policy that can lead the agent to the target state from an initial state $s_0$}
+
+\ForEach{episode}{
+    Generate $a_0$ at $s_0$ following $\pi_0(s_0)$ \\
+    \While{$s_t (t = 0, 1, 2, \ldots) \neq s_{target}$}{
+        Collect $(r_{t+1}, s_{t+1}, a_{t+1})$ given $(s_t, a_t)$, last one by following $\pi_t(s_{t+1})$, other by interacting with enviroment \\
+        $w_{t+1}=w_{t}+\alpha_{t}\Bigl[r_{t+1}+\gamma\hat{q}(s_{t+1},a_{t+1},w_{t})-\hat{q}(s_{t},a_{t},w_{t})\Bigr]\nabla_{w}\hat{q}(s_{t},a_{t},w_{t})$ \\
+        $\pi_{t+1}(a|s_t) \gets \begin{cases}
+        1 - \frac{\epsilon}{|\mathcal A(s)|}(|\mathcal A(s)| - 1) & a = a^* = \arg\max_a q_{t+1}(s_t, a) \\
+        \frac{\epsilon}{|\mathcal A(s)|} & a \neq a^*.
+        \end{cases}$ \\
+        $s_t \gets s_{t+1}, a_t \gets a_{t+1}$
+    }
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
+
+We can also modify Q-learning
+\begin{equation}  \label{eq:td_action_func_q}
+    w_{t+1}=w_{t}+\alpha_{t}\Bigl[r_{t+1}+\gamma\operatorname*{max}_{a\in A(s_{t+1})}\hat{q}(s_{t+1},a,w_{t})
+    -\hat{q}(s_{t},a_{t},w_{t})\Bigr]\nabla_{w}\hat{q}(s_{t},a_{t},w_{t})
+\end{equation}
+again we can implement a on-policy or off-policy version.
+
+Lastly, in this section we introduce \mydefination{Deep Q-learning} (DQN), the objective function is 
+\begin{equation}
+    J=\mathbb{E}\left[\left(R+\gamma\operatorname*{max}_{a\in A(S^{\prime})}{\hat{q}}(S^{\prime},a,w)-{\hat{q}}(S,A,w)\right)^{2}\right]
+\end{equation}
+
+This objective function can be viewed as the squared Bellman optimality error. That is because
+\[
+    q(s, a) = \mathbb{E} \left [ R_{t+1}+\gamma \max_{a\in A(S_{t+1})}q(S_{t+1},a) \mid S_{t}=s,A_{t}=a \right ]
+\]
+is the Bellman optimality equation (see last section).
+
+For the sake of simplicity, it is assumed that the value of $w$ in $\gamma \max_{a\in A(S_{t+1})}q(S_{t+1},a)$ is fixed (for a short period of time)
+so the calculation of the gradient becomes much easier. Let  
+\[
+    J=\mathbb{E}\left[\left(R+\gamma\operatorname*{max}_{a\in A(S^{\prime})}{\hat{q}}(S^{\prime},a,w_{T})-{\hat{q}}(S,A,w)\right)^{2}\right]
+\]
+where $w_{T}$ is the target network’s parameter which is fixed. Then the gradient is:
+\begin{equation}
+    \nabla_{w}J=-\mathbb{E}\left[
+        \left(R+\gamma\operatorname*{max}_{a\in A(S^{\prime})}{\hat{q}}(S^{\prime},a,w_{T})-{\hat{q}}(S,A,w)\right)\nabla_{w}{\hat{q}}(S,A,w)
+        \right]
+\end{equation}
+
+We need to pay attention that:
+\begin{itemize}
+    \item The first technique is to use two networks, a main network and a target network, as mentioned when we calculate the gradient, 
+    let $w$ and $w_{T}$ denote the parameters of the main and target networks, respectively. They are initially set to the same value.
+    The main network is updated in every iteration. By contrast, the target network is set to be the same as the main network every certain number of 
+    iterations to satisfy the assumption that wT is fixed when calculating the gradient. 
+    \item One notable difference between deep and nondeep reinforcement learning algorithms is that a mini-batch of samples to used to train a network in 
+    DQN instead of using a single sample to update the main network.
+    \item Let $(s, a, r, s')$ be an experience sample and $\mathcal B\doteq\{(s,a,r,s^{\prime})\}$ the \mydefination{replay buffer}. Every time we update the main 
+    network, we can draw a mini-batch of experience samples from the replay buffer. The draw of samples, or called experience replay, \textbf{should follow 
+    a uniform distribution}. The state-action samples may not be uniformly distributed in practice since they are generated as a sequence by the
+behavior policy. It is necessary to break the correlation between the samples in the sequence to satisfy the assumption of uniform distribution. To do this, we can use
+the experience replay technique by uniformly drawing samples from the replay buffer. A benefit of experience replay is that each experience sample may be used multiple
+times, which can increase the data efficiency.
+\end{itemize}
+
+\vspace{\baselineskip}
+
+\begin{algorithm}[H]
+\caption{Deep Q-learning (off-policy version)}
+\KwIn{A main network and a target network with the same initial parameter.}
+\KwOut{Learn an optimal target network to approximate the optimal action values from
+the experience samples generated by a given behavior policy $\pi_b$}
+
+\Begin{
+    Store the experience samples generated by $\pi_b$ in a replay buffer $\mathcal B\doteq\{(s,a,r,s^{\prime})\}$ \\
+    \ForEach{iteration}{
+        Uniformly draw a mini-batch of samples from $\mathcal B$ \\
+        \ForEach{sample $(s, a, r, s')$}{
+            $y_{T} \doteq r + \gamma \mathrm{max}_{a\in A(s^{\prime})} \hat{q}(s^{\prime},a,w_{T})$ \\
+        }
+        Update the main network to minimize $(y_{T}^{*}-\hat{q}(s,a,w))^{2}$ using the mini-batch
+of samples
+    }
+    Set $w_T = w$ every $C$ iteration
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
+
+
+\section{Policy Gradient Methods}
+First, how to define optimal policies? When represented as a table, a policy is defined
+as optimal if it can maximize \textbf{every state value}. When represented by a function, a
+policy is defined as optimal if it can maximize certain \textbf{scalar metrics}.
+
+We now introduce some metrics
+\begin{definition}[Average State Value]
+    Or average value, is defined as $\bar{v}_{\pi}=\sum_{s\in{\cal S}}d(s)v_{\pi}(s)$, where $d(s)$ is the weight
+    of the state, It satisfles $d(s)\geq0$ for any $s\in S$ and $\sum_{s\in S}d(s)=1$. So we can interprete it as the probability distribution, so 
+    $\bar{v}_{\pi}=\mathbb{E}_{S\sim d}[v_{\pi}(S)]$.
+
+    Then how can we select $d$, we can choose it independent (we use $d_0$ and $\bar v_{\pi}^0$ as the notation) or dependent of policy (the stationary 
+    distribution). Our ultimate goal is to find an optimal policy to maximize $\bar{v}_{\pi}$. It is the same as 
+    \[ J(\theta)=\lim_{n\rightarrow\infty}\mathbb{E}\left[\sum_{t=0}^{n}\gamma^{t}R_{t+1}\right]=\mathbb{E}\left[\sum_{t=0}^{\infty}\gamma^{t}R_{t+1}\right] \]
+    because
+    \begin{align*}
+        \mathbb{E}\left[\sum_{t=0}^{\infty}\gamma^{t}R_{t+1}\right] &= \sum_{s \in \mathcal S}d(s) \mathbb{E}\left[\sum_{t=0}^{\infty}\gamma^{t}R_{t+1} \mid S_0 = s \right] \\
+        &= \sum_{s \in \mathcal S}d(s) v_{\pi}(s) \\
+        &= \bar v_{\pi}(s)
+    \end{align*}
+    with the matrix form we have
+    \[ \bar v_{\pi}(s) = d^T v_{\pi}(s) \]
+\end{definition}
+
+\begin{definition}[Average Reward]
+    Or called average one-step reward, it is defined as
+    \begin{align*}
+        \bar{r}_{\pi} &\doteq \sum_{s\in{\cal S}}d_{\pi}(s)r_{\pi}(s) \\
+        &= \mathbb E_{S\sim d_{\pi}}[r_{\pi}({S})]
+    \end{align*}
+    where $r_{\pi}(s)\doteq\sum_{a\in A}\pi(a|s,\theta)r(s,a)=\mathbb{E}_{A \in \pi(s,\theta)}[r(s,A)|s]$ is the expectation of the immediate rewards.
+    Here $r(s,a)\doteq\mathbb{E}[R|s,a]=\sum_{r}r p(r|s,a)$.
+
+    $\bar r_{\pi}$ is equivalent to
+    \[ J(\theta)=\operatorname*{lim}_{n\rightarrow\infty}\frac{1}{n}  \mathbb E \left[\sum_{t=0}^{n-1}R_{t+1}\right] \]
+    and
+    \[ \bar{r}_{\pi}=\sum_{s\in S}d_{\pi}(s)r_{\pi}(s)=d_{\pi}^{T}r_{\pi} \]
+\end{definition}
+
 
 
 
