@@ -1651,7 +1651,7 @@ the algorithm is usually called advantage actor-critic (A2C).
 
 \ForEach{time step $t$ in each episode}{
     Generate $a_t$ following $\pi(a, s_t, \theta_t)$, observe $r_{t+1}, s_{t+1}$ \\
-    Advantage: $\delta_t = r_{t+1}+\gamma v_{t}(s_{t+1})-v_{t}(s_{t})$ \\
+    Advantage: $\delta_t = r_{t+1}+\gamma v_{t}(s_{t+1}, w_t)-v_{t}(s_{t}, w_t)$ \\
     Actor (Policy update): $\theta_{t+1} \leftarrow \theta_t +\alpha_{\theta} \delta_t \nabla_{\theta}\ln{{\pi}}(a_{t}|s_{t},\theta_t)$ \\
     Critic (Value update): $w_{t+1}=w_{t}+\alpha_{w} \delta_t \nabla_{w}v(s_{t},w_{t})$
 }
@@ -1668,7 +1668,7 @@ This approximation is reasonable because
 \[
     q_{\pi}(s_{t},a_{t})-v_{\pi}(s_{t})=\mathbb{E}\left[R_{t+1}+\gamma v_{\pi}(S_{t+1})-v_{\pi}(S_{t})\vert S_{t}=s_{t},A_{t}=a_{t}\right]
 \]
-When we use the TD error, the algorithm may also be called TD actorcritic.
+When we use the TD error, the algorithm may also be called TD actor-critic.
 
 All the methods we talked above is on-policy, now we introduce off-policy one. But first we introduce \mydefination{Importance Sampling},
 if $x$ is generated with $p_1$, we want use $p_0$ to evaluate expectation
@@ -1720,8 +1720,8 @@ Suppose the behavior policy is $\beta$, than what we want to optimize is
 
     \begin{align*}
     \nabla_{\theta} J(\theta) 
-    &= \sum_{s \in \mathcal{S}} d_{\beta}(s) \nabla_{\theta} v_{\pi}(s) 
-    = \sum_{s \in \mathcal{S}} d_{\beta}(s) \sum_{s' \in \mathcal{S}} \text{Pr}_{\pi}(s'|s) \sum_{a \in \mathcal{A}} \nabla_{\theta} \pi(a|s', \theta) q_{\pi}(s', a) \\
+    = \sum_{s \in \mathcal{S}} d_{\beta}(s) \nabla_{\theta} v_{\pi}(s) 
+    &= \sum_{s \in \mathcal{S}} d_{\beta}(s) \sum_{s' \in \mathcal{S}} \text{Pr}_{\pi}(s'|s) \sum_{a \in \mathcal{A}} \nabla_{\theta} \pi(a|s', \theta) q_{\pi}(s', a) \\
     &= \sum_{s' \in \mathcal{S}} \left( \sum_{s \in \mathcal{S}} d_{\beta}(s) \text{Pr}_{\pi}(s'|s) \right) \sum_{a \in \mathcal{A}} \nabla_{\theta} \pi(a|s', \theta) q_{\pi}(s', a) \\
     &\doteq \sum_{s' \in \mathcal{S}} \rho(s') \sum_{a \in \mathcal{A}} \nabla_{\theta} \pi(a|s', \theta) q_{\pi}(s', a) \\
     &= \sum_{s \in \mathcal{S}} \rho(s) \sum_{a \in \mathcal{A}} \nabla_{\theta} \pi(a|s, \theta) q_{\pi}(s, a) \quad \text{(change } s' \text{ to } s) \\
@@ -1737,6 +1737,140 @@ Suppose the behavior policy is $\beta$, than what we want to optimize is
     \end{align*}
 \end{proof}
 
+The corresponding algorithm is
+\[
+    \theta_{t+1}=\theta_{t}+\alpha_{\theta}\frac{\pi(a_{t}|s_{t},\theta_{t})}{\beta(a_{t}|s_{t})}\nabla_{\theta}\ln\pi(a_{t}|s_{t},\theta_{t})\bigl(q_{t}(s_{t},a_{t})-v_{t}(s_{t})\bigr)
+\]
+using TD error, then we get
+\[
+    \theta_{t+1}=\theta_{t}+\alpha_{\theta}\frac{\pi(a_{t}|s_{t},\theta)}{\beta(a_{t}|s_{t})}\nabla_{\theta}\ln\pi(a_{t}|s_{t},\theta)\delta_{t}(s_{t},a_{t})
+\]
+where
+\[
+    q_{t}(s_{t},a_{t})-v_{t}(s_{t})\approx r_{t+1}+\gamma v_{t}(s_{t+1})-v_{t}(s_{t})\doteq\delta_{t}(s_{t},a_{t})
+\]
+
+\vspace{\baselineskip}
+
+\begin{algorithm}[H]
+\caption{Off-policy actor-critic based on importance sampling}
+\KwIn{A given behavior policy $\beta(a | s)$. Initial parameter $\theta_0$ and policy function $\pi(a | s, \theta_0)$. A value function $v(s, w_0)$, $\alpha_w, \alpha_{\theta} > 0$}
+\KwOut{Learn an optimal policy for maximizing $J(\theta)$.}
+
+\ForEach{time step $t$ in each episode}{
+    Generate $a_t$ following $\beta(s_t)$, observe $r_{t+1}, s_{t+1}$ \\
+    Advantage: $\delta_t = r_{t+1}+\gamma v_{t}(s_{t+1}, w_t)-v_{t}(s_{t}, w_t)$ \\
+    Actor (Policy update): $\theta_{t+1} = \theta_t +\alpha_{\theta} \frac{\pi(a_{t}|s_{t},\theta_t)}{\beta(a_{t}|s_{t})} \delta_t \nabla_{\theta}\ln{{\pi}}(a_{t}|s_{t},\theta_t)$ \\
+    Critic (Value update): $w_{t+1}=w_{t}+\alpha_{w} \frac{\pi(a_{t}|s_{t},\theta_t)}{\beta(a_{t}|s_{t})} \delta_t \nabla_{w}v(s_{t},w_{t})$
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
+
+Up to now, we need $\pi(a | s, \theta) > 0$ because the use of $\ln$, we will then show deterministic policy can also be used in policy gradient methods.
+We use $a = \mu(s, \theta)$ to specifically denote a deterministic policy.
+
+\begin{theorem}[Deterministic policy gradient theorem] \label{theorem:deterministic_policy_gradient_theorem}
+    The gradient of $J(\theta)$ is
+    \begin{equation}
+        \begin{aligned}
+            \nabla_{\theta}J(\theta) &= \sum_{s\in{\mathcal{S}}}\eta(s)\nabla_{\theta}\mu(s)\big(\nabla_{a}q_{\mu}(s,a)\big)\big|_{a=\mu(s)} \\
+            &= \mathbb{E}_{S\sim\eta}\left[\nabla_{\theta}\mu(S)\big(\nabla_{a}q_{\mu}(S,a)\big)|_{a=\mu(S)}\right]
+        \end{aligned}
+    \end{equation}
+    where $\eta$ is a distribution of the states.
+\end{theorem}
+
+When we use samples to approximate the true gradient, it is not required to sample actions. Therefore, the deterministic policy gradient method is off-policy.
+
+We first derive the gradient of the average value:
+\begin{equation}
+    J(\theta)=\mathbb{E}[v_{\mu}(s)]=\sum_{s\in{\mathcal{S}}}d_{0}(s)v_{\mu}(s)
+\end{equation}
+where $d_0$ is the probability distribution of the states. Here, $d_0$ is selected to be independent
+of $\mu$ for simplicity.
+
+
+\begin{lemma}[Gradient of $v_{\mu}(s)$]
+    In the discounted case, it holds for any $s \in \cal S$ that
+    \begin{equation}
+        \nabla_{\theta}v_{\mu}(s)
+        =\sum_{s^{\prime}\in{\cal S}}\mathrm{Pr}_{\mu}(s^{\prime}|s)
+        \nabla_{\theta}\mu(s^{\prime})\big(\nabla_{a}q_{\mu}(s^{\prime},a)\big)|_{a=\mu(s^{\prime})}
+    \end{equation}
+    where 
+    \[
+        \mathrm{Pr}_{\mu}(s^{\prime}|s)\doteq\sum_{k=0}^{\infty}\gamma^{k}[P_{\mu}^{k}]_{s s^{\prime}}=\big[(I-\gamma P_{\mu})^{-1}\big]_{s s^{\prime}}
+    \]
+    is the discounted total probability of transitioning from $s$ to $s'$ under $\mu$.
+\end{lemma}
+
+\begin{theorem}[Deterministic policy gradient theorem in the discounted case]
+    The distribution $\eta$ in \ref{theorem:deterministic_policy_gradient_theorem} is
+    \[
+        \rho_{\mu}(s)=\sum_{s^{\prime}\in{\cal S}}d_{0}(s^{\prime})\mathrm{Pr}_{\mu}(s|s^{\prime})
+    \]
+    where 
+    \[
+        \mathrm{Pr}_{\mu}(s^{\prime}|s)\doteq\sum_{k=0}^{\infty}\gamma^{k}[P_{\mu}^{k}]_{s s^{\prime}}=\big[(I-\gamma P_{\mu})^{-1}\big]_{s s^{\prime}}
+    \]
+    is the discounted total probability of transitioning from $s$ to $s'$ under $\mu$.
+\end{theorem}
+
+We next derive the gradient of the average reward
+\begin{equation}
+    J(\theta) = \bar r_{\mu} = \mathbb{E}_{S \sim d_{\mu}}[r_{\mu}(S)]=\sum_{s\in{\mathcal{S}}}d_{\mu}(s)r_{\mu}(s)
+\end{equation}
+where
+\[
+    r_{\mu}(s)=\mathbb{E}[R|s,a=\mu(s)]=\sum_{r}r p(r|s,a=\mu(s))
+\]
+
+\begin{theorem}[Deterministic policy gradient theorem in the undiscounted case]
+    The gradient of $J(\theta)$ is
+    \begin{equation}
+        \begin{aligned}
+            \nabla_{\theta}J(\theta) &= \sum_{s\in{\mathcal{S}}}d_{\mu}(s)\nabla_{\theta}\mu(s)\big(\nabla_{a}q_{\mu}(s,a)\big)\big|_{a=\mu(s)} \\
+            &= \mathbb{E}_{S\sim d_{\mu}}\left[\nabla_{\theta}\mu(S)\big(\nabla_{a}q_{\mu}(S,a)\big)|_{a=\mu(S)}\right]
+        \end{aligned}
+    \end{equation}
+    where $d_{\mu}$ is a stationary distribution of the states.
+\end{theorem}
+
+So we can design a gradient ascent algorithm
+\[
+    \theta_{t+1}=\theta_{t}+\alpha_{\theta}\mathbb{E}_{S\sim\eta}\left[\nabla_{\theta}\mu(S)\left(\nabla_{a}q_{\mu}(S,a)\right)|_{a=\mu(S)}\right]
+\]
+the stochastic version is
+\[
+    \theta_{t+1}=\theta_{t}+\alpha_{\theta}\nabla_{\theta}\mu(s_{t})\bigl(\nabla_{a}q_{\mu}(s_{t},a)\bigr)\bigl|_{a=\mu(s_{t})}
+\]
+
+In particular, the experience sample required by the critic is $\left(s_{t},\alpha_{t},r_{t+1},s_{t+1},\tilde{a}_{t+1}\right)$, where $\tilde{a}_{t+1} = \mu(s_{t+1})$.
+The generation of this experience sample involves two policies. The first is the policy
+for generating $a_t$ at $s_t$, and the second is the policy for generating $\tilde{a}_{t+1}$ at $s_{t+1}$. The
+first policy that generates $a_t$ is the behavior policy since $a_t$ is used to interact with the
+environment. The second policy must be $\mu$ because it is the policy that the critic aims
+to evaluate. Hence, $\mu$ is the target policy. It should be noted that $\tilde{a}_{t+1}$ is not used to
+interact with the environment in the next time step. Hence, $\mu$ is not the behavior policy.
+Therefore, the critic is off-policy. And we showed above the actor part is also off-policy.
+
+\vspace{\baselineskip}
+
+\begin{algorithm}[H]
+\caption{Deterministic policy gradient or deterministic actor-critic}
+\KwIn{A given behavior policy $\beta(a | s)$. Initial parameter $\theta_0$ and policy function $\mu(s, \theta_0)$. A value function $q(s, a, w_0)$, $\alpha_w, \alpha_{\theta} > 0$}
+\KwOut{Learn an optimal policy for maximizing $J(\theta)$.}
+
+\ForEach{time step $t$ in each episode}{
+    Generate $a_t$ following $\beta(s_t)$, observe $r_{t+1}, s_{t+1}$ \\
+    Advantage: $\delta_{t}=r_{t+1}+\gamma q(s_{t+1},\mu(s_{t+1},\theta_{t}),w_{t})-q(s_{t},a_{t},w_{t})$ \\
+    Actor (Policy update): $\theta_{t+1}=\theta_{t}+\alpha_{\theta}\nabla_{\theta}\mu(s_{t}, \theta_t)\bigl(\nabla_{a}q_{\mu}(s_{t},a, w_t)\bigr)\bigl|_{a=\mu(s_{t})}$ \\
+    Critic (Value update): $w_{t+1}=w_{t}+\alpha_{w} \delta_t \nabla_{w}q(s_{t}, a_t, w_{t})$
+}
+\end{algorithm}
+
+\vspace{\baselineskip}
 
 
 
