@@ -31,7 +31,11 @@
 
 \mainmatter
 
-\chapter{Gaussian Process}
+\chapter{Survey Papers}
+
+\begin{introduction}
+    \item Gaussian Process (2025)
+\end{introduction}
 
 \section{Gaussian processes for dynamics learning in model predictive control (2025)}
 
@@ -528,5 +532,277 @@ RKHS.
 \mydefination{4. Alternative uncertainty quantification}, try heuristics $\beta$ in \ref{Safty_Guarantees} second category but no theoretical guarantees. Or 
 directly use the GP prior [505], use student-t, kernel embedding. In noise free setting we can use distributional kernel embeddings and sample method, for 
 bounded noise we can use multi-step predictors, for additive unbounded noise in linear system (tightening) and nonlinear (conformal prediction). 
+
+\chapter{Gaussian Processes for Machine Learning}
+
+\section{Regression}
+
+\subsection{Weight-space View}
+
+Given a training dataset $\mathcal{D}=\{( \mathbf{x}_{i}, y_{i} ) \mid i=1, \ldots, n \} = (X, \mathbf y) \in \mathbb R^{D \times n}$,
+we will review the Bayesian analysis of the standard linear regression model with Gaussian noise.
+\begin{equation}
+    f(\mathbf{x})=\mathbf{x}^{\mathsf{T}}\mathbf{w},\quad y=f(\mathbf{x})+\varepsilon,
+\end{equation}
+where $\varepsilon \sim \mathcal N(0, \sigma_n^2)$ is the noise.
+
+\begin{definition}[Likelihood]
+    Likelihood is the probability density of the observations given the parameters
+    \begin{equation}
+        \begin{aligned}
+            p(\mathbf{y}|X,\mathbf{w}) &= \prod_{i=1}^{n}p(y_{i}|\mathbf{x}_{i},\mathbf{w}) \\
+            &= \prod_{i=1}^{n}\frac{1}{\sqrt{2\pi}\sigma_{n}}\exp\left(-\frac{(y_{i}-\mathbf{x}_{i}^{\mathsf{T}}\mathbf{w})^{2}}{2\sigma_{n}^{2}}\right) \\
+            &= \frac{1}{(2\pi\sigma_{n}^{2})^{n/2}}\exp\Big(-\frac{1}{2\sigma_{n}^{2}}|{\bf y}-X^{\mathsf{T}}{\bf w}|^{2}\Big) \\
+            &= {\cal N}(X^{\mathsf{T}}{\bf w},\sigma_{n}^{2}{\cal I})
+        \end{aligned}
+    \end{equation}
+    where $|z|$ denotes the Euclidean length of vector $z$.
+\end{definition}
+
+In the Bayesian formalism
+we need to specify a prior over the parameters, expressing our beliefs about the prior
+parameters before we look at the observations. We put a zero mean Gaussian
+prior with covariance matrix $\Sigma_p$ on the weights
+\begin{equation}
+    {\bf w}\sim{\mathcal N}({\bf0},\Sigma_{p})
+\end{equation}
+
+\begin{definition}[Posterior]
+    Based on Bayes' rule, we have
+    \begin{equation}
+        \text{posterior} = \frac{\text{likelihood} \times \text{prior}}{\text{marginal likelihood}}, \quad 
+        p(\mathbf{w}|\mathbf{y},X) = {\frac{p(\mathbf{y}|X,\mathbf{w})p(\mathbf{w})}{p(\mathbf{y}|X)}}
+    \end{equation}
+    where the normalizing constant, also known as the \mydefination{marginal likelihood}, is independent of the weights and given by
+    \begin{equation}
+        p(\mathbf{y}|X)\ =\ \int p(\mathbf{y}|X,\mathbf{w})p(\mathbf{w})d\mathbf{w}
+    \end{equation}
+\end{definition}
+
+Then we can obtain
+\begin{equation}
+    \begin{aligned}
+        p(\mathbf{w}|X,\mathbf{y})\ &\propto\ 
+        \exp\left(-{\frac{1}{2\sigma_{n}^{2}}}(\mathbf{y}-X^{\mathsf{T}}\mathbf{w})^{\mathsf{T}}(\mathbf{y}-X^{\mathsf{T}}\mathbf{w})\right)\exp\left(-{\frac{1}{2}}\mathbf{w}^{\mathsf{T}}\Sigma_{p}^{-1}\mathbf{w}\right) \\
+        &\propto\ 
+        \exp{\bigl(-\frac{1}{2}(\mathbf w-\bar{\mathbf w})^{\top}}(\frac{1}{\sigma_{n}^{2}}X X^{\top}+\Sigma_{p}^{-1})(\mathbf w-\bar{\mathbf w})\bigr)
+    \end{aligned}
+\end{equation}
+where $\bar{\textbf{w}}=\sigma_{n}^{-2}(\sigma_{n}^{-2}X X^{\textsf{T}}+\Sigma_{p}^{-1})^{-1}X{\mathbf{y}}$,
+we can write it concisely as
+\begin{equation}
+    p(\mathbf{w}|X,\mathbf{y})\sim{\mathcal{N}}({\bar{\mathbf{w}}}=\frac{1}{\sigma_{n}^{2}}A^{-1}X\mathbf{y},A^{-1})
+\end{equation}
+
+Notice that for this model (and indeed for any
+Gaussian posterior) the mean of the posterior distribution $p(\mathbf{w}|X,\mathbf{y})$ is also
+its mode, which is also called the \mydefination{maximum a posteriori} (MAP) estimate of $\mathbf{w}$.
+In a non-Bayesian setting the negative log prior is sometimes thought of
+as a penalty term, and the MAP point is known as the penalized maximum
+likelihood estimate of the weights. Note, however, that in the Bayesian setting the MAP
+estimate plays no special role. In this case, due to symmetries in the model and posterior, it happens that the mean
+of the predictive distribution is the same as the prediction at the mean of the posterior.
+However, this is not the case in general. The penalized maximum likelihood procedure is known in this case as ridge regression
+because of the effect of the quadratic penalty term $\frac{1}{2}\mathbf{w}^{\mathsf{T}}\Sigma_{p}^{-1}\mathbf{w}$ from the log prior.
+
+To make predictions for a test case we average over all possible parameter predictive distribution
+values, weighted by their posterior probability. This is in contrast to non-Bayesian schemes, where a single parameter is typically chosen by some criterion. 
+\begin{equation}
+    \begin{aligned} 
+        p ( f_{*} | \mathbf{x}_{*}, X, \mathbf{y} ) &=\ \int p ( f_{*} | \mathbf{x}_{*}, \mathbf{w} ) p ( \mathbf{w} | X, \mathbf{y} )  d \mathbf{w} \\ 
+        &= \mathcal{N} \big ( \frac{1} {\sigma_{n}^{2}} \mathbf{x}_{*}^{\top} A^{-1} X \mathbf{y}, \ \mathbf{x}_{*}^{\top} A^{-1} \mathbf{x}_{*} \big ) \\ 
+    \end{aligned} 
+\end{equation}
+we can proof it with $\mathbb{E}(f_*) = \mathbb E(\mathbf x_*^Tw) = \mathbf x_*^T\mu_w, \text{Var}(f_*) = \mathbf x_*^T \Sigma_w \mathbf x_*$. Or in a 
+complicate way (my proof)
+\begin{align*}
+    p ( f_{*} | \mathbf{x}_{*}, X, \mathbf{y} )
+    &=\int \delta(f_*-\mathbf x_*^T \omega)\cdot \frac{1}{\sqrt{2 \pi \Sigma_w}}\exp \left [ -\frac{(w-\mu_w)^T(w-\mu_w)}{2 \Sigma_w}\right ]dw \\
+    &= \frac{1}{\sqrt{2 \pi \Sigma_w} \mathbf x_*^T}\exp \left [ -\frac{(w-\mu_w)^T\mathbf x_*\mathbf x_*^T(w-\mu_w)}{2 \mathbf x_*^T \Sigma_w  \mathbf x_*}\right ] | f_*=\mathbf x_*^T w \\
+    &= \frac{1}{\sqrt{2 \pi \Sigma_w} \mathbf x_*^T}\exp \left [ -\frac{(f_*-\mathbf x_*^T\mu_w)^T(f_*-\mathbf x_*^T\mu_w)}{2 \mathbf x_*^T \Sigma_w  \mathbf x_*}\right ]
+\end{align*}
+
+\chapter{Other Gaussian Process Information}
+
+\section{A unifying View of Sparse Approximate Gaussian Process Regression}
+
+\subsection{Gaussian Processes for Regression}
+
+Probabilistic regression is usually formulated as follows, given a training dataset 
+$\mathcal{D}=\{( \mathbf{x}_{i}, y_{i} ) \mid i=1, \ldots, n \} = (X, \mathbf y) \in \mathbb R^{D \times n}$
+\begin{equation}
+    y_{i}=f({\bf x}_{i})+\varepsilon_{i},\quad\mathrm{where}\quad\varepsilon_{i}\sim{\mathcal N}(0,\sigma_{\mathrm{noise}}^{2})
+\end{equation}
+
+Gaussian process (GP) regression is a Bayesian approach which assumes a GP prior over functions, assumes a priori that function values behave according to
+\begin{equation}
+    p({\bf f}|{\bf x}_{1},{\bf x}_{2},\cdots,{\bf x}_{n})=\mathcal{N}(0,K)
+\end{equation}
+where $\bf f = [f_1, f_2, \cdots, f_n]^{\top}$ is a vector of latent function values $f_i = f(\mathbf{x}_i)$ and $K$ is a covariance matrix, whose entries are given by 
+the covariance function $K_{ij} = k(\mathbf{x}_i, \mathbf{x}_j)$. Note that the GP treats the
+latent function values $f_i$ as \textbf{random variables}, indexed by the corresponding input. The GP model is concerned only
+with the conditional of the outputs given the inputs; we do not model anything about the inputs
+themselves.
+
+\begin{definition}[Degenerate GP]
+    A Gaussian process is called degenerate if the covariance function has a finite number
+of non-zero eigenvalues. Degenerate GPs (such as e.g. with polynomial covariance function) correspond to finite linear
+(-in-the-parameters) models, whereas non-degenerate GPs (such as e.g. with squared exponential
+or RBF covariance function) do not.
+\end{definition}
+
+Using joint GP prior $p({\bf f}, {\bf f_{\ast}})$ and the likelihood $p({\bf y} | {\bf f})$ we get the joint posterior
+\begin{equation}
+    p({\bf f},{\bf f}_{*}|{\bf y})=\frac{p({\bf f},{\bf f}_{*})p({\bf y}|{\bf f})}{p({\bf y})}
+\end{equation}
+where $p({\bf y} | {\bf f}) = p({\bf y} | {\bf f}, {\bf f_{\ast}})$ since the likelihood is conditionally independent
+of everything else given $\bf f$.
+
+The final step needed to produce the desired posterior predictive distribution is to marginalize out
+the unwanted training set latent variables
+\begin{equation}
+    p({\bf f}_{*}|{\bf y})
+    =\int p({\bf f},{\bf f}_{*}|{\bf y})\mathrm{d}{\bf f}
+    =\frac{1}{p({\bf y})}\int p({\bf y}|{\bf f})p({\bf f},{\bf f}_{*})\mathrm{d}{\bf f},
+\end{equation}
+
+The joint GP prior and the independent likelihood are both Gaussian
+\begin{equation}
+    p({\bf f},{\bf f}_{*}) = \mathcal N \big ( 0, 
+    \begin{bmatrix}
+        K_{{\bf f}, {\bf f}} & K_{{*}, {\bf f}} \\
+        K_{{\bf f}, {*}} & K_{{*}, {*}}
+    \end{bmatrix} \big ), \quad
+    p({\bf y} | {\bf f}) = \mathcal N({\bf f}, \sigma_{\mathrm{noise}}^{2} I)
+\end{equation}
+then
+\begin{equation}
+    p({\bf f}_{*}|{\bf y})=
+    \mathcal{N} \big (K_{{*}, {\bf f}} (K_{{\bf f}, {\bf f}} + \sigma_{\mathrm{noise}}^{2} I)^{-1}{\bf y},
+    K_{{*}, {*}} - K_{{*}, {\bf f}}(K_{{\bf f}, {\bf f}} + \sigma_{\mathrm{noise}}^{2} I)^{-1} K_{{\bf f}, {*}} \big )
+\end{equation}
+
+\subsection{A New Unifying View}
+Consider using \mydefination{inducing variables} $\mathbf u = [u_1, u_2, \cdots, u_m]^{\top}$ rewrite the joint prior, corresponding to a set of input 
+location $X_{\mathbf u}$ which we called \mydefination{inducing inputs}. Due to the consistency of Gaussian processes, we know
+\begin{equation}
+    p({\bf f}_{*},{\bf f})=
+    \int p({\bf f}_{*},{\bf f}_{*}, {\bf u}){d \mathbf u}=
+    \int p({\bf f}_{*},{\bf f}|{\bf u})p({\bf u}){d \mathbf u},\quad\mathrm{where}\quad p({\bf u})={\mathcal N}(0,K_{\mathbf u,{\mathbf u}})
+\end{equation}
+This is an exact expression. Now, we introduce the fundamental approximation which gives rise
+to almost all sparse approximations. We approximate the joint prior by assuming that ${\bf f}_{*}$ and $\bf f$ are
+conditionally independent given $\bf u$.
+\begin{equation}
+    p({\bf f}_{*},{\bf f}) \simeq q({\bf f}_{*},{\bf f})=\int q({\bf f}_{*}|{\bf u})q({\bf f}|{\bf u})p({\bf u})d{\bf u}
+\end{equation}
+
+Let us specify two conditionals (using the \href{https://statproofbook.github.io/P/mvn-cond.html}{proof})
+\begin{equation} \label{eq:conditionals}
+\begin{aligned}
+    \text{training conditional}: &\quad q({\bf f}|{\bf u}) = \mathcal N \big (K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u, 
+    K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f} \big ) \\
+    \text{test conditional}: &\quad q({\bf f}_*|{\bf u}) = \mathcal N \big (K_{*, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u, 
+    K_{*, *} - Q_{*, *} \big )
+\end{aligned}
+\end{equation}
+where $Q_{a, b} = K_{a, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} K_{\mathbf u, b}$.
+We emphasize that all the sparse methods discussed in the paper correspond simply to different
+approximations to the conditionals in \ref{eq:conditionals}.
+
+\subsection{The Subset of Data (SoD) Approximation}
+Computation complexity is $\mathcal O(m^3)$, where $m < n$, only mentioned as a baseline method.
+
+\subsection{The Subset of Regressors (SoR) Approximation}
+SoR models are finite linear-in-the-parameters models with a particular prior on the weights.
+For any input $\mathbf x_*$, the corresponding function value $\mathbf f_*$ is
+given by (this is the prior):
+\begin{equation}
+    f_{*}=K_{*\mathbf{u}}\mathbf{w}_{\mathbf{u}},\quad
+    \mathrm{with} \quad p(\mathbf{w}_{\mathbf{u}})=\mathcal{N}(0,K_{\mathbf{u},\mathbf{u}}^{-1})
+\end{equation}
+where $\mathbf w_{\mathbf u} = K_{\mathbf u, \mathbf u}^{-1} \mathbf u$, because (the left part, the right part is the prior on the inducing point)
+\begin{equation}
+    \mathbf{u}=K_{\mathbf{u,u}}\mathbf{w}_{\mathbf{u}}\ \Rightarrow\ 
+    \langle\mathbf{u}\mathbf{u}^{\top}\rangle=K_{\mathbf{u,u}}\langle\mathbf{w}_{\mathbf{u}}\mathbf{w}_{\mathbf{u}}^{\top}\rangle K_{\mathbf{u,u}}=K_{\mathbf{u,u}}
+\end{equation}
+then it is clear
+\begin{equation}
+    \mathbf{f}_{*}
+    =K_{*,\mathbf{u}}K_{\mathbf{u},\mathbf{u}}^{-1}\mathbf{u},\quad\mathrm{with}\quad\mathbf{u}\sim{\mathcal{N}}(0,K_{\mathbf{u},\mathbf{u}})
+\end{equation}
+
+Then the conditionals are
+\begin{equation}
+    q_{\text{SoR}}(\mathbf{f|u})=
+    \mathcal{N}(K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}\mathbf{u},0),
+    \quad q_{\text{SoR}}(\mathbf{f_{*}}|\mathbf{u})
+    =\mathcal{N}(K_{*, \mathbf u}K_{\mathbf{u,u}}^{-1}\mathbf{u},0)
+\end{equation}
+
+We can then get the prior
+\begin{equation}
+    q_{\text{SoR}}(\mathbf f, \mathbf f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} & Q_{\mathbf f, *} \\
+        Q_{*, \mathbf f} & Q_{*, *}
+    \end{bmatrix} \right )
+\end{equation}
+
+\begin{proof}
+    Let
+    \[
+    y = 
+    \begin{bmatrix}
+        \mathbf f \\
+        \mathbf f_*
+    \end{bmatrix} = 
+    \begin{bmatrix}
+        K_{\mathbf{f,u}} \\
+        K_{*, \mathbf u}
+    \end{bmatrix} K_{\mathbf{u,u}}^{-1} \mathbf{u} = 
+    A K_{\mathbf{u,u}}^{-1} \mathbf{u}
+    \]
+    then using the \href{https://statproofbook.github.io/P/mvn-ltt}{linear transform rule} we get
+    \[ y \sim \mathcal N (0, A K_{\mathbf{u,u}}^{-1} A^{\top}) \]
+\end{proof}
+
+A more descriptive name for this method, would be the
+\mydefination{Deterministic Inducing Conditional} (DIC) approximation. We see that this approximate prior is
+degenerate, zero variance on the conditionals will lead to a over confident prediction.
+
+Finally we get to write the predictive distribution
+\begin{equation}
+    \begin{aligned}
+    q_{\text{SoR}}(\mathbf f_* | \mathbf y) &= \mathcal N \left (
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} \mathbf y,
+        Q_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} Q_{\mathbf f, *}
+        \right ) \\
+        &= \mathcal N \left (
+            \sigma^{-2} K_{*, \mathbf u} \Sigma K_{\mathbf u, f} \mathbf y,
+            K_{*, \mathbf u} \Sigma K_{\mathbf u, *}
+            \right )
+    \end{aligned}
+\end{equation}
+where we have defined $\Sigma = (\sigma^{-2} K_{\mathbf u, \mathbf f} K_{\mathbf f, \mathbf u} + K_{\mathbf u, \mathbf u})^{-1}$. The 
+second formulation is computationally cheaper!
+
+The new covariance function has rank (at most) $m$, thus
+
+\begin{remark}
+    The SoR approximation is equivalent to exact inference in the degenerate Gaussian
+process with covariance function $k_{\text{SoR}}(\mathbf x_i, \mathbf x_j) = k(\mathbf x_i, \mathbf u) K_{\mathbf{u,u}}^{-1} k(\mathbf u, \mathbf x_j)$.
+\end{remark}
+
+Compared to the Subset of Data, the SoR has the complexity of $\mathcal O(nm^2)$, and $\mathcal O(m)$ and $\mathcal O(m^2)$ for predictive mean and variance.
+
+\subsection{The Deterministic Training Conditional (DTC) Approximation}
+Seeger et al. (2003), who called the method Projected
+Latent Variables (PLV), presented the method as relying on a likelihood approximation, based on
+the projection $\mathbf f = K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u$
+\begin{equation}
+    p(\mathbf y | \mathbf f) \simeq q(\mathbf y | \mathbf u) = \mathcal N \left ( 
+        K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u, \sigma^2 I
+         \right )
+\end{equation}
 
 \end{document}
