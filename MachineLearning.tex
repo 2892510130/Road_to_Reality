@@ -626,6 +626,17 @@ complicate way (my proof)
 
 \section{A unifying View of Sparse Approximate Gaussian Process Regression}
 
+\subsection{Important Preliminaries}
+
+Conditional distribution in \href{https://statproofbook.github.io/P/mvn-cond.html}{proof}, let $x \sim \mathcal N(\mu, \Sigma)$, then $x_1 | x_2 
+\sim \mathcal N(\mu_{1 | 2}, \Sigma_{1 | 2})$:
+\begin{equation}
+    \begin{aligned}
+        \mu_{1 | 2} &= \mu_1 + \Sigma_{12} \Sigma_{22}^{-1} (x_2 - \mu_2) \\
+        \Sigma_{1 | 2} &= \Sigma_{11} - \Sigma_{12} \Sigma_{22}^{-1} \Sigma_{21} \\
+    \end{aligned}
+\end{equation}
+
 \subsection{Gaussian Processes for Regression}
 
 Probabilistic regression is usually formulated as follows, given a training dataset 
@@ -633,6 +644,11 @@ $\mathcal{D}=\{( \mathbf{x}_{i}, y_{i} ) \mid i=1, \ldots, n \} = (X, \mathbf y)
 \begin{equation}
     y_{i}=f({\bf x}_{i})+\varepsilon_{i},\quad\mathrm{where}\quad\varepsilon_{i}\sim{\mathcal N}(0,\sigma_{\mathrm{noise}}^{2})
 \end{equation}
+
+\begin{definition}[Gaussian Process] \label{def:gaussian_process}
+    A Gaussian process (GP) is a collection of random variables, any finite number of
+which have consistent joint Gaussian distributions.
+\end{definition}
 
 Gaussian process (GP) regression is a Bayesian approach which assumes a GP prior over functions, assumes a priori that function values behave according to
 \begin{equation}
@@ -784,7 +800,22 @@ Finally we get to write the predictive distribution
     \end{aligned}
 \end{equation}
 where we have defined $\Sigma = (\sigma^{-2} K_{\mathbf u, \mathbf f} K_{\mathbf f, \mathbf u} + K_{\mathbf u, \mathbf u})^{-1}$. The 
-second formulation is computationally cheaper!
+second formulation is computationally cheaper (using matrix inversion lemma / woodbury identities)!
+
+\begin{proof}
+    \[
+    \begin{aligned}
+        (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} 
+        &= (K_{\mathbf{f, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} + \sigma_{\text{noise}}^2 I)^{-1} \\
+        &\rightarrow \text{using matrix inversion lemma} \\
+        &= \sigma_{\text{noise}}^{-2} I - \sigma_{\text{noise}}^{-2} K_{\mathbf{f, u}} (K_{\mathbf{u, u}} + \sigma_{\text{noise}}^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}})^{-1} K_{\mathbf{u, f}} \\
+        &\rightarrow \Sigma^{-1} - K_{\mathbf{u, u}} = \sigma_{\text{noise}}^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}} \\
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1}
+        &= \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} - \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} (\Sigma^{-1} - K_{\mathbf{u, u}}) \Sigma K_{\mathbf{f, u}} \\
+        &= \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} \Sigma K_{\mathbf{f, u}}
+    \end{aligned}
+    \]
+\end{proof}
 
 The new covariance function has rank (at most) $m$, thus
 
@@ -804,5 +835,323 @@ the projection $\mathbf f = K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-
         K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u, \sigma^2 I
          \right )
 \end{equation}
+
+The method has also been called the Projected Process Approximation (PPA) by Rasmussen and
+Williams. One way of obtaining an equivalent model is to retain the usual likelihood, but to impose a 
+deterministic training conditional and the exact test conditional
+\begin{equation}
+    q_{\mathrm{DTC}}(\mathbf{f|u})=\mathcal{N}(K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}{\bf u},0),
+    \quad q_{\mathrm{DTC}}(\mathbf{f_{*}}|{\bf u})=p(\mathbf{f_{*}}|{\bf u})
+\end{equation}
+
+This reformulation has the advantage of allowing us to stick to our view of exact inference (with
+exact likelihood) with approximate priors. A systematic name for this
+approximation is the \mydefination{Deterministic Training Conditional} (DTC). The joint prior is
+\begin{equation}
+    q_{\text{DTC}}(\mathbf f, \mathbf f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} & Q_{\mathbf f, *} \\
+        Q_{*, \mathbf f} & K_{*, *}
+    \end{bmatrix} \right )
+\end{equation}
+
+\begin{proof}
+    $Q_{\mathbf f, \mathbf f}$ is the same with SoR, $K_{*, *}$ because it use exact test condition. Then we show
+    \[
+        K_{\mathbf f, *} = Cov \langle K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}{\bf u}, \mathbf f_* \rangle 
+        = Cov \langle K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}{\bf u}, K_{\mathbf{f_*,u}}K_{\mathbf{u,u}}^{-1} \mathbf u + \eta \rangle 
+        = Q_{\mathbf{f,*}}
+    \]
+    where $\eta \sim \mathcal N(0, K_{*, *} - Q_{*, *})$ is independent of $u$.
+\end{proof}
+
+The fundamental difference (with respect to SoR) is that under the DTC approximation $\bf f_*$ has a prior variance of its own,
+given by $K_{*, *}$. This prior variance reverses the behaviour of the predictive uncertainties, and turns
+them into sensible ones.
+
+The predictive distribution is now given by
+\begin{equation}
+    \begin{aligned}
+    q_{\text{DTC}}(\mathbf f_* | \mathbf y) &= \mathcal N \left (
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} \mathbf y,
+        K_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} Q_{\mathbf f, *}
+        \right ) \\
+        &= \mathcal N \left (
+            \sigma^{-2} K_{*, \mathbf u} \Sigma K_{\mathbf u, \mathbf f} \mathbf y,
+            K_{*, *} - Q_{*, *} + K_{*, \mathbf u} \Sigma K_{\mathbf u, *}
+            \right )
+    \end{aligned}
+\end{equation}
+
+This added term $K_{*, *} - Q_{*, *}$ is the
+predictive variance of the posterior of $\bf f_*$ conditioned on $\bf u$. It grows to the prior variance $K_{*, *}$ as $\bf x_*$
+moves far from the inducing inputs in $X_u$.
+
+\begin{remark}
+    The only difference between the predictive distribution of DTC and SoR is the variance.
+The predictive variance of DTC is never smaller than that of SoR.
+\end{remark}
+
+\begin{remark}
+    The DTC approximation does not correspond exactly to a Gaussian process, since the covariances for training cases and test cases are computed differently.
+    It disobeys defination \ref{def:gaussian_process}.
+\end{remark}
+
+The computational complexity has the same order as for SoR.
+
+\subsection{The Fully Independent Training Conditional (FITC) Approximation}
+Snelson and Ghahramani (2006) proposed another likelihood approximation to speed up
+Gaussian process regression, which they called Sparse Gaussian Processes using Pseudo-inputs
+(SGPP).
+\begin{equation}
+    p(\mathbf y | \mathbf f) \simeq q(\mathbf y | \mathbf u) = \mathcal N \left ( 
+        K_{\mathbf f, \mathbf u} K_{\mathbf u, \mathbf u}^{-1} \mathbf u, 
+        \mathrm{diag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}] + \sigma^2 I
+         \right )
+\end{equation}
+this is called \mydefination{Fully Independent Training Conditional} (FITC) based on the inducing conditionals
+\begin{equation}
+    q_{\mathrm{FITC}}(\mathbf{f|u})
+    = \prod_{i=1}^{n} p(f_i | \mathbf u)
+    =\mathcal{N}(K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}{\bf u}, \mathrm{diag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}]),
+    \quad q_{\mathrm{FITC}}(\mathbf{f_{*}}|{\bf u})=p(\mathbf{f_{*}}|{\bf u})
+\end{equation}
+
+Instead of ignoring the variance, FITC proposes an approximation to the training conditional
+distribution as a further independence assumption. The prior is (for now we initially only consider a single test case $f_*$)
+\begin{equation}
+    q_{\text{FITC}}(\mathbf f, f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} + \mathrm{diag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}] & Q_{\mathbf f, *} \\
+        Q_{*, \mathbf f} & K_{*, *}
+    \end{bmatrix} \right )
+\end{equation}
+
+\begin{proof}
+    We can use the same $\eta$ techniques as DTC proof.
+\end{proof}
+
+Note, that the sole difference between the DTC and FITC is that in the top left corner of the implied
+prior covariance, FITC replaces the approximate covariances of DTC by the exact ones on the
+diagonal. The predictive distribution is
+\begin{equation}
+    \begin{aligned}
+    q_{\text{FITC}}(f_* | \mathbf y) &= \mathcal N \left (
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \Lambda)^{-1} \mathbf y,
+        K_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \Lambda)^{-1} Q_{\mathbf f, *}
+        \right ) \\
+        &= \mathcal N \left (
+            K_{*, \mathbf u} \Sigma K_{\mathbf u, \mathbf f} \mathbf \Lambda^{-1} y,
+            K_{*, *} - Q_{*, *} + K_{*, \mathbf u} \Sigma K_{\mathbf u, *}
+            \right )
+    \end{aligned}
+\end{equation}
+where $\Sigma = (K_{\mathbf u, \mathbf f} \Lambda^{-1} K_{\mathbf f, \mathbf u} + K_{\mathbf u, \mathbf u})^{-1}$ and 
+$\Lambda = \mathrm{diag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f} + \sigma^2 I]$.
+
+The computational complexity is identical to that of SoR and DTC.
+
+So far we have only considered a single test case. There are two options for joint predictions,
+either 
+\begin{enumerate}
+    \item use the exact full test conditional from \ref{eq:conditionals}, the training and test covariance are
+computed differently, and thus this does not correspond to our strict definition of a GP model.
+    \item extend the additional factorizing assumption to the test conditional.
+\end{enumerate}
+
+\begin{remark}
+    Iff the assumption of full independence is extended to the test conditional, the FITC approximation is equivalent to exact inference in a non-degenerate Gaussian process with covariance
+function $k_{\mathrm{FIC}}(x_{i},x_{j})=k_{\mathrm{SoR}}(x_{i},x_{j})+\delta_{i,j}[k(x_{i},x_{j})-k_{\mathrm{SoR}}(x_{i},x_{j})]$.
+\end{remark}
+
+A logical name for the method where the conditionals (training and
+test) are always forced to be fully independent would be the \mydefination{Fully Independent Conditional} (FIC)
+approximation.
+
+\begin{equation}
+    q_{\text{FIC}}(\mathbf f, \mathbf f f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} + \mathrm{diag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}] & Q_{\mathbf f, *} \\
+        Q_{*, \mathbf f} & Q_{*, *} + \mathrm{diag} [K_{*, *} - Q_{*, *}]
+    \end{bmatrix} \right )
+\end{equation}
+
+\subsection{The Partially Independent Training Conditional (PITC) Approximation}
+In this section we will further improve the DTC approximation (while remaining computationally attractive) by
+extending the training conditional to have a block diagonal covariance
+\begin{equation}
+    q_{\mathrm{PITC}}(\mathbf{f|u})
+    =\mathcal{N}(K_{\mathbf{f,u}}K_{\mathbf{u,u}}^{-1}{\bf u}, \mathrm{blockdiag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}]),
+    \quad q_{\mathrm{FITC}}(\mathbf{f_{*}}|{\bf u})=p(\mathbf{f_{*}}|{\bf u})
+\end{equation}
+then
+\begin{equation}
+    q_{\text{PITC}}(\mathbf f, f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} + \mathrm{blockdiag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f}] & Q_{\mathbf f, *} \\
+        Q_{*, \mathbf f} & K_{*, *}
+    \end{bmatrix} \right )
+\end{equation}
+and
+\begin{equation}
+    \begin{aligned}
+    q_{\text{PITC}}(f_* | \mathbf y) &= \mathcal N \left (
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \Lambda)^{-1} \mathbf y,
+        K_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \Lambda)^{-1} Q_{\mathbf f, *}
+        \right ) \\
+        &= \mathcal N \left (
+            K_{*, \mathbf u} \Sigma K_{\mathbf u, \mathbf f} \mathbf \Lambda^{-1} y,
+            K_{*, *} - Q_{*, *} + K_{*, \mathbf u} \Sigma K_{\mathbf u, *}
+            \right )
+    \end{aligned}
+\end{equation}
+with $\Sigma = (K_{\mathbf u, \mathbf f} \Lambda^{-1} K_{\mathbf f, \mathbf u} + K_{\mathbf u, \mathbf u})^{-1}$ and 
+$\Lambda = \mathrm{blockdiag} [K_{\mathbf f, \mathbf f} - Q_{\mathbf f, \mathbf f} + \sigma^2 I]$.
+
+An identical expression was obtained by Schwaighofer and Tresp
+(2003, Sect. 3), developing from the original Bayesian committee machine (BCM) by Tresp (2000).
+The relationship to the FITC was pointed out by Lehel Csato. The BCM was originally proposed as 
+a transductive learner (i.e. where the test inputs have to be known before training), and the inducing
+inputs were chosen to be the test inputs. 
+
+It is important to realize that the BCM proposes two orthogonal ideas: first, the block diagonal
+structure of the partially independent training conditional, and second setting the inducing inputs to
+be the test inputs. These two ideas can be used independently and in next Section we propose using
+the first without the second.
+
+If we choose $k = n / m $ blocks, each of size $m \times m$, we get computational complexity $\mathcal O(nm^2)$.
+
+\begin{remark}
+    The PITC approximation does not correspond exactly to a Gaussian process.
+\end{remark}
+
+\subsection{Transduction and Augmentation}
+\begin{definition}[Transduction]
+    Transduction occurs only if the predictive distribution depends on other test inputs.
+\end{definition}
+
+There are several different possible motivations for transduction: 1) transduction is somehow
+easier than induction (Vapnik, 1995), 2) the test inputs may reveal important information, which
+should be used during training. This motivation drives models in semi-supervised learning (studied
+mostly in the context of classification) and 3) for approximate algorithms one may be able to limit
+the discrepancies of the approximation at the test points.
+
+However
+
+\begin{remark}
+    Transduction can not occur in exact Gaussian process models.
+\end{remark}
+
+The main drawback of transduction is that by its nature it doesn’t provide a predictive model
+in the way inductive models do. In the usual GP model one can do the bulk of the computation involved in the predictive distributions 
+(e.g. matrix inversion) before seeing the test cases, enabling fast computation of test predictions.
+
+It is interesting that whereas other methods spend much effort trying to optimize the inducing
+variables, the BCM simply uses the test set. The quality of the BCM approximation depends then
+on the particular location of the test inputs, upon which one usually does not have any control. We
+now see that there may be a better method, eliminating the drawback of transduction, namely use
+the PITC approximation, but choose the $\bf u$'s carefully (see Section 9), don't just use the test set.
+
+\begin{definition}[Augment]
+    For every test input, we augment the sparse GP with it into the inducing variables $u$ to get $(u, f_*)$. So for each test input, the computation complexity of 
+    mean is $\mathcal O(nm)$, which is higher than non-augmented GP, which is $\mathcal O(m)$. Because we need the computing of vector matrix product
+    $K_{*, f}K_{f, u}$ in $\Sigma$.
+\end{definition}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\textwidth]{image/transduction.png}
+    \caption{Two views on Augmentation. One view is to see that the test latent function value $f_*$
+is now part of the inducing variables u and therefore has access to the training latent
+function values. An equivalent view is to consider that we have dropped the assumption
+of conditional independence between $f_*$ and the training latent function values. Even if
+$f_*$ has now direct access to each of the training fi, these still need to go through u to
+talk to each other if they fall in conditionally independent blocks. We have in this figure
+decided to recycle the graph for PITC from Figure 3 to show that all approximations we
+have presented can be augmented, irrespective of what the approximation for the training
+conditional is.} \label{fig:transduction}
+\end{figure}
+
+We can augment $u$ with $f_*$ as shown in the figure \ref{fig:transduction}, then the covariance of the conditional of $f_*$ is 0.
+For example in SoR, if the test input is far from the training points, the mean will go to zero, but covariance will be small too, which is not 
+what we expected. With the augment of the test point, by ensuring that there is always a basis function centered on the test case, there is a particularly big difference.
+Although augmentation was initially proposed for a narrow set of circumstances, it is easily
+applied to any of the approximations discussed.
+
+But we should remember that
+
+\begin{remark}
+    A full non-degenerate Gaussian process cannot be augmented, a GP with a covariance function that has a
+feature-space which is infinite dimensional, i.e. with basis functions everywhere.
+\end{remark}
+
+Let us compute the effective prior for the augmented SoR
+\begin{equation}
+    q_{\mathrm{ASoR}}(\mathbf{f}_{*},\mathbf{f})=\int q_{\mathrm{SoR}}(\mathbf{f}|f_{*},\mathbf{u})p(f_{*},\mathbf{u})d\mathbf{u}
+\end{equation}
+It is interesting to notice that this is also the effective prior that would result from augmenting the
+DTC approximation, since $q_{\mathrm{SoR}}(\mathbf{f}|f_{*},\mathbf{u}) = q_{\mathrm{DTC}}(\mathbf{f}|f_{*},\mathbf{u})$.
+
+\begin{remark}
+    Augmented SoR (ASoR) is equivalent to augmented DTC (ADTC).
+\end{remark}
+
+Augmented DTC only differs from DTC in the additional presence of $f_*$ among the inducing variables in the training conditional. We can only expect 
+augmented DTC to be a more accurate approximation than DTC, since adding an additional inducing variable can only help capture information
+from $\bf y$. Therefore
+
+\begin{remark}
+    DTC is a less accurate (but cheaper) approximation than augmented SoR
+\end{remark}
+
+\subsection{On the Choice of the Inducing Variables}
+We can use maximize the marginal
+likelihood (also called the evidence) with respect to $X_u$ to get the inducing inputs.
+\begin{equation}
+    q({\bf y}|X_{\mathbf{u}})
+    =\int \int p({\bf y}|{\bf f})q({\bf f}|{\bf u})p({\bf u}|X_{\mathbf{u}}) d{\bf u}\mathbf{d}{\bf f}=\int p({\bf y}|{\bf f})q({\bf f}|X_{\mathbf{u}})d{\bf f},
+\end{equation}
+which of course is independent of the test conditional. 
+
+\begin{equation}
+    \log q(\mathbf{y}|X_{\mathbf{u}})
+    =-{\frac{1}{2}}\mathrm{log}|Q_{\mathbf{f,f}}+\Lambda|
+    -{\textstyle\frac{1}{2}}\mathbf{y}^{\mathsf{T}}{\big(}Q_{\mathbf{f,f}}+\Lambda\big)^{-1}\mathbf{y}-{\textstyle\frac{n}{2}}\mathrm{log}(2\pi)
+\end{equation}
+
+\subsection{Other Methods and Conclusion}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{image/sparse_gp_summary.png}
+    \caption{summary of sparse GP} \label{fig:sparse_gp_summary}
+\end{figure}
+
+First is \mydefination{Nystrom Approximation}
+
+\begin{equation}
+    q(\mathbf f, \mathbf f f_*) = \mathcal N \left ( 0, \begin{bmatrix}
+        Q_{\mathbf f, \mathbf f} & K_{\mathbf f, *} \\
+        L_{*, \mathbf f} & K_{*, *}
+    \end{bmatrix} \right )
+\end{equation}
+
+\begin{remark}
+    The Nystrom Approximation does not correspond to a well-formed probabilistic model.
+\end{remark}
+
+The predictive distribution is 
+\begin{equation}
+    p(f_* | \mathbf y) = \mathcal N \left ( 
+        K_{*, \mathbf f} [Q_{\mathbf f, \mathbf f} + \sigma^2 I]^{-1} \mathbf y, K_{*,  *} - K_{*, \mathbf f} [Q_{\mathbf f, \mathbf f} + \sigma^2 I]^{-1} k_{\mathbf f, *}    
+    \right )
+\end{equation}
+
+Second one is \mydefination{Releavance Vector Machine}, which is given by
+\begin{equation}
+    f_* = \phi_* \mathbf w, \quad p(\mathbf w | A) = \mathcal N(0, A)
+\end{equation}
+where $\phi_* = [\phi_1(\mathbf x), \phi_2(\mathbf x), \ldots, \phi_m(\mathbf x)]$ is the (row) vector of responses of the $m$ basis functions, and
+$A = \text{diag}(\alpha_1, \ldots, \alpha_m)$ is the diagonal matrix of joint prior precisions (inverse variances) of the weights.
+
+\begin{remark}
+    The RVM is equivalent to a degenerate Gaussian process with covariance function $k_{\mathrm{{RVM}}}(\mathbf{x}_{i},\mathbf{x}_{j})=\phi_{i}A^{-1}\phi_{j}^{\mathsf{T}}=\Sigma_{k=1}^{m}\alpha_{k}^{-1}\phi_{k}(\mathbf{x}_{i}) \phi_{k}(\mathbf{x}_{j})$
+\end{remark}
 
 \end{document}
