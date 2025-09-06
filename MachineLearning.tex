@@ -790,8 +790,8 @@ Finally we get to write the predictive distribution
 \begin{equation}
     \begin{aligned}
     q_{\text{SoR}}(\mathbf f_* | \mathbf y) &= \mathcal N \left (
-        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} \mathbf y,
-        Q_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} Q_{\mathbf f, *}
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1} \mathbf y,
+        Q_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1} Q_{\mathbf f, *}
         \right ) \\
         &= \mathcal N \left (
             \sigma^{-2} K_{*, \mathbf u} \Sigma K_{\mathbf u, f} \mathbf y,
@@ -805,14 +805,15 @@ second formulation is computationally cheaper (using matrix inversion lemma / wo
 \begin{proof}
     \[
     \begin{aligned}
-        (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} 
-        &= (K_{\mathbf{f, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} + \sigma_{\text{noise}}^2 I)^{-1} \\
+        (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1} 
+        &= (K_{\mathbf{f, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} + \sigma^2 I)^{-1} \\
         &\rightarrow \text{using matrix inversion lemma} \\
-        &= \sigma_{\text{noise}}^{-2} I - \sigma_{\text{noise}}^{-2} K_{\mathbf{f, u}} (K_{\mathbf{u, u}} + \sigma_{\text{noise}}^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}})^{-1} K_{\mathbf{u, f}} \\
-        &\rightarrow \Sigma^{-1} - K_{\mathbf{u, u}} = \sigma_{\text{noise}}^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}} \\
-        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1}
-        &= \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} - \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} (\Sigma^{-1} - K_{\mathbf{u, u}}) \Sigma K_{\mathbf{f, u}} \\
-        &= \sigma_{\text{noise}}^{-2} K_{\mathbf{*, u}} \Sigma K_{\mathbf{f, u}}
+        &= \sigma^{-2} I - \sigma^{-4} K_{\mathbf{f, u}} (K_{\mathbf{u, u}} + \sigma^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}})^{-1} K_{\mathbf{u, f}} \\
+        &= \sigma^{-2} I - \sigma^{-4} K_{\mathbf{f, u}} \Sigma K_{\mathbf{u, f}} \\
+        &\rightarrow \sigma^{-2} K_{\mathbf{u, f}} K_{\mathbf{f, u}} = \Sigma^{-1} - K_{\mathbf{u, u}} \\
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1}
+        &= \sigma^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} K_{\mathbf{u, f}} - \sigma^{-2} K_{\mathbf{*, u}} K_{\mathbf{u, u}}^{-1} (\Sigma^{-1} - K_{\mathbf{u, u}}) \Sigma K_{\mathbf{u, f}} \\
+        &= \sigma^{-2} K_{\mathbf{*, u}} \Sigma K_{\mathbf{u, f}}
     \end{aligned}
     \]
 \end{proof}
@@ -872,8 +873,8 @@ The predictive distribution is now given by
 \begin{equation}
     \begin{aligned}
     q_{\text{DTC}}(\mathbf f_* | \mathbf y) &= \mathcal N \left (
-        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} \mathbf y,
-        K_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma_{\text{noise}}^2 I)^{-1} Q_{\mathbf f, *}
+        Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1} \mathbf y,
+        K_{*, *} - Q_{*, \mathbf f} (Q_{\mathbf f, \mathbf f} + \sigma^2 I)^{-1} Q_{\mathbf f, *}
         \right ) \\
         &= \mathcal N \left (
             \sigma^{-2} K_{*, \mathbf u} \Sigma K_{\mathbf u, \mathbf f} \mathbf y,
@@ -897,6 +898,76 @@ The predictive variance of DTC is never smaller than that of SoR.
 \end{remark}
 
 The computational complexity has the same order as for SoR.
+
+What is interesting is that we can derive the same result by using a variational approach, first we get the evidence lower bound (ELBO)
+\begin{equation}
+    \begin{aligned}
+        \log p(y) &= \log \int p(y, f, u) df du \\
+        &= \log \int p(y, f, u) \frac{q(f, u)}{q(f, u)} df du \\
+        &= \log \int q(f, u) \frac{p(y, f, u)}{q(f, u)} df du \\
+        &= \log \mathbb E_{q(f, u)} \left [ \frac{p(y, f, u)}{q(f, u)} \right ] \\
+        &\geq \mathbb E_{q(f, u)} \left [ \log \frac{p(y, f, u)}{q(f, u)} \right ] \quad \text{(Jensen's inequality)} \\
+        &= \mathbb E_{q(f, u)} \left [ \log \frac{p(y|f, u)p(f, u)}{p(f|u)q(u)} \right ] \\
+        &= \mathbb E_{q(f, u)} \left [ \log \frac{p(y|f)p(f|u)p(u)}{p(f|u)q(u)} \right ] \\
+        &= \mathbb E_{q(f, u)} \left [ \log \frac{p(y|f)p(u)}{q(u)} \right ] \\
+        &= \mathbb E_{q(f, u)} \left [ \log p(y|f) \right ] - \text{KL} \left [q(u) || p(u) \right ]
+    \end{aligned}
+\end{equation}
+
+We consider the first term
+\begin{equation}
+    \begin{aligned}
+        \mathbb E_{q(f, u)} \left [ \log p(y|f) \right ] &= \int q(f, u) \log p(y|f) df du \\
+        &= \int p(f|u) q(u) \log p(y|f) df du \quad y|f \sim \mathcal N(f, \sigma^2) \\
+        &= \int q(u) \int P(f|u) \log p(y|f) df du \quad f|u \sim \mathcal N(K_{f, u}K_{u, u}^{-1}u, K_{f, f} - Q_{f, f})
+    \end{aligned}
+\end{equation}
+
+With $\log p(y|f) = -\frac{n}{2} \log 2\pi - n \log \sigma - \frac{1}{2\sigma^2} (y-f)^T(y-f)$, we can get the inner integral
+\begin{equation}
+    \begin{aligned}
+        \int p(f|u) \log p(y|f) df &= -\frac{n}{2} \log 2\pi - n \log \sigma - \frac{1}{2\sigma^2} \mathbb E_{p(f|u)} \left [ (y-f)^T(y-f) \right ] \\
+        & \text{Using expectation of quadratic form} \\
+        &= -\frac{n}{2} \log 2\pi - n \log \sigma \\
+        &- \frac{1}{2\sigma^2} \left [ (y - K_{f, u}K_{u, u}^{-1}u)^T(y - K_{f, u}K_{u, u}^{-1}u) + \text{Tr}(K_{f, f} - Q_{f, f}) \right ] \\
+    \end{aligned}
+\end{equation}
+
+Then the entire integral is
+\begin{equation}
+    \begin{aligned}
+        \mathbb E_{q(f, u)} \left [ \log p(y|f) \right ] &= -\frac{n}{2} \log 2\pi - n \log \sigma \\
+        &- \frac{1}{2\sigma^2} \left [ (y - K_{f, u}K_{u, u}^{-1}m_u)^T(y - K_{f, u}K_{u, u}^{-1}m_u) + \text{Tr}(K_{f, f} - Q_{f, f}) \right ] \\
+        &- \frac{1}{2\sigma^2} \text{Tr}(K_{f, u}K_{u, u}^{-1}S_u K_{u, u}^{-1}K_{u, f})
+    \end{aligned}
+\end{equation}
+
+Second term in ELBO is then
+\begin{equation}
+    \begin{aligned}
+        -\text{KL} \left [q(u) || p(u) \right ] &=
+        -\mathbb E_{q(f, u)} \left [ \log q(u) \right ] + \mathbb E_{q(f, u)} \left [ \log p(u) \right ] \\
+        &= -\frac{1}{2} \left [ -m + \log |K_{u, u}| - \log |S_u| + \text{Tr}(S_u K_{u, u}^{-1}) + m_u^T K_{u, u}^{-1} \right ]
+    \end{aligned}
+\end{equation}
+
+Then combine the two parts and get the partial derivatives we can get the optimal $m_u$ and $S_u$
+\begin{equation}
+    \begin{aligned}
+        m_u &= \sigma^{-2} K_{u, u} \Sigma K_{u, f} y \\
+        S_u &= K_{u, u} \Sigma K_{u, u}
+    \end{aligned}
+\end{equation}
+where $\Sigma = (K_{u, f} K_{f, u} / \sigma^2 + K_{u, u})^{-1}$.
+
+Then we can get the predictive distribution
+\begin{equation}
+    \begin{aligned}
+        q(f_* | y) &= \int p(f_* | u) q(u) du \\
+        &= \mathcal N (K_{*, u} K_{u, u}^{-1} m_u, K_{*, *} - Q_{*, *} + K_{*, u} K_{u, u}^{-1} S_u K_{u, u}^{-1} K_{u, *}) \\
+        &= \mathcal N (\sigma^{-2} K_{*, u} \Sigma K_{u, f} y, K_{*, *} - Q_{*, *} + K_{*, u} \Sigma K_{u, *})
+    \end{aligned}
+\end{equation}
 
 \subsection{The Fully Independent Training Conditional (FITC) Approximation}
 Snelson and Ghahramani (2006) proposed another likelihood approximation to speed up

@@ -47,6 +47,30 @@
     \end{equation}
 \end{theorem}
 
+\begin{theorem}[Expected value and variance of a quadratic form]
+    Let $x \sim \mathcal N(\mu, \Sigma)$, then
+    \[
+        \mathbb E [x^T Q x] = \mu^T Q \mu + \mathrm{tr}(Q \Sigma)
+    \]
+    and
+    \[
+        \mathrm{Var} [x^T Q x] = 2 \mathrm{tr} (\Sigma^T Q^T Q \Sigma) + 4 \mu^T Q^T \Sigma Q \mu
+    \]
+\end{theorem}
+
+\begin{proof}
+    \[
+        \begin{aligned}
+           \mathbb E [x^T Q x] &= \mathbb E [ \mathrm{tr} (x^T Q x)] \quad \text{since trace of a scalar is itself} \\
+                               &= \mathbb E [ \mathrm{tr} (Q x x^T)] \quad \mathrm{tr}(AB) = \mathrm{tr}(BA) ~ \text{if} ~ AB, BA ~ \text{are both square} \\
+                               &= \mathrm{tr}(\mathbb E [ Q x x^T]) \quad \text{since trace and expectation commute} \\
+                               &= \mathrm{tr}( Q(\mathrm{Cov}(x) + \mathbb E [x] \mathbb E^T [x] )) \\
+                               &= \mathrm{tr} (Q \Sigma) + \mathrm{tr} (Q \mu \mu^T) \\
+                               &= \mu^T Q \mu + \mathrm{tr}(Q \Sigma) \quad \text{again use} ~ \mathrm{tr}(AB) = \mathrm{tr}(BA)
+        \end{aligned}
+    \]
+\end{proof}
+
 \section{Gaussian}
 
 \begin{theorem}[Product of two guassian density function]
