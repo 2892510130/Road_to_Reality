@@ -899,7 +899,8 @@ The predictive variance of DTC is never smaller than that of SoR.
 
 The computational complexity has the same order as for SoR.
 
-What is interesting is that we can derive the same result by using a variational approach, first we get the evidence lower bound (ELBO)
+What is interesting is that we can derive the same result by using a variational approach, first we get the evidence lower bound (ELBO) with $q(u) = \mathcal N(m_u, S_u)$
+and $q(f, u) = p(f|u)q(u)$
 \begin{equation}
     \begin{aligned}
         \log p(y) &= \log \int p(y, f, u) df du \\
@@ -968,6 +969,74 @@ Then we can get the predictive distribution
         &= \mathcal N (\sigma^{-2} K_{*, u} \Sigma K_{u, f} y, K_{*, *} - Q_{*, *} + K_{*, u} \Sigma K_{u, *})
     \end{aligned}
 \end{equation}
+
+This is because $p(f_* | u) = \mathcal N (K_{*, u} K_{u, u}^{-1} u, K_{*, *} - Q_{*, *})$ and $q(u) = \mathcal N(m_u, S_u)$, so we can use the total expectation and variance formula or the linear transform rule.
+In detail
+\[
+\begin{aligned}
+    \mathbb E(f_* | y) &= \mathbb E_{q(u)} [\mathbb E(f_* | u)] = \mathbb E_{q(u)} [K_{*, u} K_{u, u}^{-1} u] = K_{*, u} K_{u, u}^{-1} m_u \\
+    \text{Var}(f_* | y) &= \mathbb E_{q(u)} [\text{Var}(f_* | u)] + \text{Var}_{q(u)} [\mathbb E(f_* | u)] \\
+    &= \mathbb E_{q(u)} [K_{*, *} - Q_{*, *}] + \text{Var}_{q(u)} [K_{*, u} K_{u, u}^{-1} u] \\
+    &= K_{*, *} - Q_{*, *} + K_{*, u} K_{u, u}^{-1} S_u K_{u, u}^{-1} K_{u, *}
+\end{aligned}
+\]
+
+This is same as the DTC above.
+
+Then I can introduce a recursive update method using the RLS / Kalman-gain form in \textit{Learning For Predictive Control:
+A Dual Gaussian Process Approach}, at time $k-1$ we have the posterior $q(u) = \mathcal N(m_u^{k-1}, S_u^{k-1})$, then at time $k$ we have a new data point $(x_k, y_k)$,
+$p(y_k|u) = \mathcal N(K_{f_k, u} K_{u, u}^{-1} u, \sigma^2)$, then we can update the posterior
+\begin{equation}
+    \begin{aligned}
+        q(u|y_k) &= \frac{q(y_k|u)q(u)}{p(y_k)} \\
+        &\propto q(y_k|u)q(u) \\
+        &\rightarrow - \log q(y_k|u)q(u) \quad \text{take the negative log} \\
+        &= \frac{1}{2} (u - m_u^{k-1})^T S_u^{k-1} (u - m_u^{k-1}) + \frac{1}{2\sigma^2} (y_k - K_{f_k, u} K_{u, u}^{-1} u)^2 + \text{const} \\
+        &\rightarrow \text{keeping only terms that depend on } u \\
+        &= \frac{1}{2} u^T (S_u^{k-1} + \sigma^{-2} K_{u, u}^{-1} K_{u, f_k} K_{f_k, u} K_{u, u}^{-1}) u - (S_u^{k-1} m_u^{k-1} + \sigma^{-2} K_{u, u}^{-1} K_{u, f_k} y_k) u + \text{const} \\
+        &= \frac{1}{2} u^T A u - b^T u + \text{const} \\
+        &= \frac{1}{2} (u - A^{-1} b)^T A (u - A^{-1} b) + \text{const}
+    \end{aligned}
+\end{equation}
+
+So we can get the updated posterior
+\begin{equation}    
+    \begin{aligned}
+        S_u^k &= A^{-1} =  (S_u^{k-1} + \sigma^{-2} K_{u, u}^{-1} K_{u, f_k} K_{f_k, u} K_{u, u}^{-1})^{-1} \\
+        m_u^k &= A^{-1}b = S_u^k (S_u^{k-1} m_u^{k-1} + \sigma^{-2} K_{u, u}^{-1} K_{u, f_k} y_k)
+    \end{aligned}   
+\end{equation}
+
+Using the matrix inversion lemma, we can rewrite $S_u^k$ as
+\begin{equation}
+    S_u^k = S_u^{k-1} - S_u^{k-1} K_{u, u}^{-1} K_{u, f_k} (\sigma^2 + K_{f_k, u} K_{u, u}^{-1} S_u^{k-1} K_{u, u}^{-1} K_{u, f_k})^{-1} K_{f_k, u} K_{u, u}^{-1} S_u^{k-1}
+\end{equation}
+Then we can define the Kalman gain
+\begin{equation}
+    K_k = S_u^{k-1} K_{u, u}^{-1} K_{u, f_k} (\sigma^2 + K_{f_k, u} K_{u, u}^{-1} S_u^{k-1} K_{u, u}^{-1} K_{u, f_k})^{-1}
+\end{equation}
+Then the update equations become
+\begin{equation}
+    \begin{aligned}
+        m_u^k &= m_u^{k-1} + K_k (y_k - K_{f_k, u} K_{u, u}^{-1} m_u^{k-1}) \\
+        S_u^k &= S_u^{k-1} - K_k K_{f_k, u} K_{u, u}^{-1} S_u^{k-1}
+    \end{aligned}
+\end{equation}
+
+I can give you the exact formulation in the paper, if we define $\Phi_k = K_{f_k, u} K_{u, u}^{-1}$
+\begin{equation}
+    \begin{aligned}
+        r_k &= y_k - \Phi_k m_u^{k-1} \\
+        G_k &= \sigma^2 + \Phi_k S_u^{k-1} \Phi_k^T \\
+        L_k &= S_u^{k-1} \Phi_k^T G_k^{-1} \\
+        m_u^k &= m_u^{k-1} + L_k r_k \\
+        S_u^k &= S_u^{k-1} - L_k G_k L_k^T
+    \end{aligned}
+\end{equation}
+
+\begin{remark}
+    We have to note that the above update method is not good when the new comming data is far away from the inducing points, because the inducing points are fixed and not updated.
+\end{remark}
 
 \subsection{The Fully Independent Training Conditional (FITC) Approximation}
 Snelson and Ghahramani (2006) proposed another likelihood approximation to speed up
